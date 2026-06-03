@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>微信 WeChat PWA</title>
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ededed">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f7f7f7;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* 隐藏滚动条 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 红包旋转动画 */
+        @keyframes rotate-coin {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
+        }
+        .animate-spin-coin {
+            animation: rotate-coin 1s linear infinite;
+        }
+        /* 模拟微信绿 */
+        .wx-green {
+            background-color: #07c160;
+        }
+        .text-wx-green {
+            color: #07c160;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col justify-between overflow-hidden">
+
+    <!-- 1. 登录注册页面 (Auth View) -->
+    <div id="auth-view" class="fixed inset-0 bg-[#ededed] z-[100] flex flex-col justify-between p-6">
+        <div class="mt-20 text-center">
+            <div class="w-20 h-20 bg-[#07c160] rounded-2xl mx-auto flex items-center justify-center shadow-md">
+                <i data-lucide="message-square" class="w-12 h-12 text-white"></i>
+            </div>
+            <h1 class="text-2xl font-semibold mt-4 text-gray-800">微信 PWA</h1>
+            <p class="text-sm text-gray-500 mt-1">跨端极速互通聊天系统</p>
+        </div>
+
+        <div class="space-y-4 max-w-sm mx-auto w-full mb-20">
+            <div class="bg-white rounded-lg p-1.5 flex items-center border border-gray-200">
+                <span class="px-3 text-gray-500 text-sm border-r border-gray-100">+86</span>
+                <input type="tel" id="auth-phone" placeholder="请输入手机号" class="flex-grow p-2 text-sm focus:outline-none" value="">
+            </div>
+            <div class="bg-white rounded-lg p-1.5 flex items-center border border-gray-200">
+                <input type="password" id="auth-pwd" placeholder="请输入密码" class="flex-grow p-2 text-sm focus:outline-none">
+            </div>
+            
+            <div class="flex gap-4 pt-2">
+                <button onclick="handleRegister()" class="flex-1 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-lg transition">注册</button>
+                <button onclick="handleLogin()" class="flex-1 py-3 wx-green hover:bg-[#06ae56] text-white text-sm font-medium rounded-lg transition shadow-sm">登录</button>
+            </div>
+            <p class="text-xs text-center text-gray-400">本地离线数据保存在当前浏览器，支持跨标签多开互通</p>
+        </div>
+    </div>
+
+    <!-- 2. 主体框架 (App Main Container) -->
+    <div id="app-view" class="hidden flex-grow flex flex-col h-screen overflow-hidden">
+        
+        <!-- 头部顶栏 -->
+        <header class="bg-[#ededed] px-4 py-3 flex justify-between items-center border-b border-gray-200 shrink-0">
+            <h2 id="header-title" class="text-lg font-bold text-gray-800">微信</h2>
+            <div class="flex items-center space-x-4 text-gray-800">
+                <button onclick="toggleAddFriendModal()" class="hover:opacity-70"><i data-lucide="user-plus" class="w-5 h-5"></i></button>
+                <button onclick="toggleCreateGroupModal()" class="hover:opacity-70"><i data-lucide="plus-circle" class="w-5 h-5"></i></button>
+            </div>
+        </header>
+
+        <!-- 内容滚动区 (四大 Tab 页面) -->
+        <main class="flex-grow overflow-y-auto no-scrollbar pb-16 bg-[#f7f7f7]">
+            
+            <!-- TAB 1: 消息列表 (Chats Tab) -->
+            <section id="tab-chats" class="divide-y divide-gray-100">
+                <!-- 动态聊天项将被插入此处 -->
+            </section>
+
+            <!-- TAB 2: 通讯录 (Contacts Tab) -->
+            <section id="tab-contacts" class="hidden">
+                <div class="p-3 bg-gray-100 text-xs text-gray-500 uppercase tracking-wider font-semibold">我的好友</div>
+                <div id="contact-list" class="bg-white divide-y divide-gray-100">
+                    <!-- 好友项将被插入 -->
+                </div>
+                <div class="p-3 bg-gray-100 text-xs text-gray-500 uppercase tracking-wider font-semibold">我的群聊</div>
+                <div id="group-list" class="bg-white divide-y divide-gray-100">
+                    <!-- 群组项将被插入 -->
+                </div>
+            </section>
+
+            <!-- TAB 3: 发现 (Discover Tab) -->
+            <section id="tab-discover" class="hidden divide-y divide-gray-200">
+                <!-- 朋友圈入口 -->
+                <div onclick="openMoments()" class="p-4 bg-white flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-6 h-6 bg-blue-500 rounded flex items-center justify-center text-white">
+                            <i data-lucide="aperture" class="w-4 h-4"></i>
+                        </div>
+                        <span class="text-gray-800 text-sm font-medium">朋友圈</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <!-- 最新一条朋友圈的预览头像 -->
+                        <div id="moments-badge" class="w-2 h-2 rounded-full bg-red-500 hidden"></div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: 我 (Profile Tab) -->
+            <section id="tab-me" class="hidden space-y-4">
+                <div class="bg-white p-6 flex items-center space-x-4 border-b border-gray-100">
+                    <div id="me-avatar" class="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center text-2xl font-bold text-white">
+                        U
+                    </div>
+                    <div>
+                        <h3 id="me-name" class="text-lg font-bold text-gray-800">未设置</h3>
+                        <p id="me-phone" class="text-xs text-gray-400 mt-0.5">微信号: --</p>
+                    </div>
+                </div>
+
+                <!-- 虚拟零钱钱包 -->
+                <div class="bg-white p-4 flex justify-between items-center border-y border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-white">
+                            <i data-lucide="wallet" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-gray-800">支付与钱包</span>
+                            <p class="text-[10px] text-gray-400">红包收发资金流水</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span id="me-balance" class="text-sm font-bold text-gray-700 tech-font">¥100.00</span>
+                        <button onclick="topUpBalance()" class="block text-[10px] text-wx-green font-medium hover:underline">充值模拟币</button>
+                    </div>
+                </div>
+
+                <div class="px-4">
+                    <button onclick="handleLogout()" class="w-full py-3 bg-red-50 text-red-500 text-sm font-semibold rounded-xl hover:bg-red-100 transition">
+                        退出登录
+                    </button>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- 底部主导航栏 -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-[#f7f7f7] border-t border-gray-200 py-2 flex justify-around items-center shrink-0 z-50">
+            <button onclick="switchTab('chats')" id="nav-chats" class="flex flex-col items-center text-wx-green">
+                <i data-lucide="message-square" class="w-5 h-5"></i>
+                <span class="text-[10px] mt-1 font-medium">微信</span>
+            </button>
+            <button onclick="switchTab('contacts')" id="nav-contacts" class="flex flex-col items-center text-gray-400">
+                <i data-lucide="users" class="w-5 h-5"></i>
+                <span class="text-[10px] mt-1 font-medium">通讯录</span>
+            </button>
+            <button onclick="switchTab('discover')" id="nav-discover" class="flex flex-col items-center text-gray-400">
+                <i data-lucide="compass" class="w-5 h-5"></i>
+                <span class="text-[10px] mt-1 font-medium">发现</span>
+            </button>
+            <button onclick="switchTab('me')" id="nav-me" class="flex flex-col items-center text-gray-400">
+                <i data-lucide="user" class="w-5 h-5"></i>
+                <span class="text-[10px] mt-1 font-medium">我</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- 3. 聊天专属弹窗 (Chat Window Overlay) -->
+    <div id="chat-window" class="fixed inset-0 bg-[#f7f7f7] z-50 flex flex-col hidden">
+        <!-- 聊天头部 -->
+        <header class="bg-[#ededed] px-4 py-3 flex justify-between items-center border-b border-gray-200">
+            <div class="flex items-center space-x-2">
+                <button onclick="closeChatWindow()" class="hover:opacity-70"><i data-lucide="chevron-left" class="w-6 h-6 text-gray-700"></i></button>
+                <h3 id="chat-title" class="text-sm font-bold text-gray-800">会话标题</h3>
+            </div>
+            <button id="chat-info-btn" class="hover:opacity-70"><i data-lucide="more-horizontal" class="w-5 h-5 text-gray-700"></i></button>
+        </header>
+        <!-- 聊天气泡显示区 -->
+        <div id="chat-messages" class="flex-grow p-4 overflow-y-auto no-scrollbar space-y-4">
+            <!-- 气泡 -->
+        </div>
+        <!-- 附件操作面板 (红包、视频) -->
+        <div id="chat-panel" class="bg-[#f7f7f7] border-t border-gray-200 p-4 grid grid-cols-4 gap-4 hidden">
+            <button onclick="openSendRedPacketModal()" class="flex flex-col items-center space-y-1 hover:scale-95 transition">
+                <div class="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-sm">
+                    <i data-lucide="gift" class="w-6 h-6"></i>
+                </div>
+                <span class="text-[10px] text-gray-600">红包</span>
+            </button>
+            <button onclick="startVideoCall()" class="flex flex-col items-center space-y-1 hover:scale-95 transition">
+                <div class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-sm">
+                    <i data-lucide="video" class="w-6 h-6"></i>
+                </div>
+                <span class="text-[10px] text-gray-600">视频通话</span>
+            </button>
+[O        </div>
+        <!-- 聊天输入框 -->
+        <div class="bg-[#ededed] px-4 py-2 flex items-center space-x-2 border-t border-gray-200 pb-6">
+            <button onclick="toggleChatPanel()" class="hover:opacity-70"><i data-lucide="plus-circle" class="w-6 h-6 text-gray-600"></i></button>
+            <input type="text" id="chat-input" placeholder="发送新消息..." class="flex-grow p-2 rounded-lg text-sm bg-white focus:outline-none border border-gray-200">
+            <button onclick="sendTextMessage()" class="px-4 py-2 wx-green hover:bg-[#06ae56] text-white text-xs font-semibold rounded-lg shadow-sm">发送</button>
+        </div>
+    </div>
+
+    <!-- 4. 朋友圈详情页 (Moments View Overlay) -->
+    <div id="moments-view" class="fixed inset-0 bg-[#f7f7f7] z-50 flex flex-col hidden">
+        <header class="bg-black/95 text-white px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <button onclick="closeMoments()" class="hover:opacity-70"><i data-lucide="chevron-left" class="w-6 h-6"></i></button>
+                <h3 class="text-sm font-bold">朋友圈</h3>
+            </div>
+            <button onclick="openPublishMomentModal()" class="hover:opacity-70"><i data-lucide="camera" class="w-5 h-5"></i></button>
+        </header>
+        <div class="flex-grow overflow-y-auto no-scrollbar space-y-6 pb-12">
+            <!-- 朋友圈头部大图 -->
+            <div class="relative h-48 bg-gradient-to-r from-gray-700 to-gray-900 flex items-end justify-end p-4">
+                <div class="flex items-center space-x-3 translate-y-6">
+                    <span id="moments-cover-name" class="text-white font-bold text-sm drop-shadow">汉车主</span>
+                    <div id="moments-cover-avatar" class="w-16 h-16 rounded-xl bg-wx-green border-2 border-white flex items-center justify-center font-bold text-white text-lg shadow-md">U</div>
+                </div>
+            </div>
+            <div class="h-6"></div> <!-- 占位符 -->
+            <!-- 朋友圈列表 -->
+            <div id="moments-list" class="px-4 space-y-6 divide-y divide-gray-100">
+                <!-- 朋友圈卡片 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 【发红包】弹窗 (Send Red Packet Overlay) -->
+    <div id="send-redpacket-modal" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-6 hidden">
+        <div class="bg-[#f7f7f7] w-full max-w-xs rounded-2xl p-5 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                <h3 class="text-sm font-bold text-red-600">发红包</h3>
+                <button onclick="closeSendRedPacketModal()"><i data-lucide="x" class="w-4 h-4 text-gray-400"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div class="bg-white p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+                    <span class="text-xs text-gray-500">总金额</span>
+                    <div class="flex items-center space-x-1">
+                        <input type="number" id="rp-amount" placeholder="0.00" class="w-20 text-right text-sm font-semibold focus:outline-none">
+                        <span class="text-xs text-gray-400">元</span>
+                    </div>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+                    <span class="text-xs text-gray-500">红包个数</span>
+                    <div class="flex items-center space-x-1">
+                        <input type="number" id="rp-count" placeholder="1" class="w-20 text-right text-sm font-semibold focus:outline-none" value="1">
+                        <span class="text-xs text-gray-400">个</span>
+                    </div>
+                </div>
+                <input type="text" id="rp-desc" placeholder="恭喜发财，大吉大利" class="w-full bg-white p-2.5 rounded-lg border border-gray-100 text-xs focus:outline-none">
+            </div>
+            <div class="text-center pt-2">
+                <span id="rp-total-display" class="text-xl font-bold text-gray-800">¥ 0.00</span>
+                <button onclick="submitSendRedPacket()" class="w-full mt-3 py-3 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl shadow-md transition">塞钱进红包</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. 【拆红包】大屏动效面板 (Open Red Packet Overlay) -->
+    <div id="open-redpacket-overlay" class="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-6 hidden">
+        <div class="bg-[#cf3e36] w-full max-w-xs rounded-2xl overflow-hidden shadow-2xl relative flex flex-col items-center p-6 text-center space-y-6">
+            <!-- 关闭按钮 -->
+            <button onclick="closeOpenRedPacketOverlay()" class="absolute left-4 top-4 text-white/60 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            
+            <div class="space-y-2 mt-4 text-amber-200">
+                <div id="rp-sender-avatar" class="w-12 h-12 rounded-full bg-white/20 mx-auto border border-white/10 flex items-center justify-center text-lg font-bold text-white">发</div>
+                <p id="rp-sender-name" class="text-xs">某人发出的红包</p>
+                <h4 id="rp-sender-desc" class="text-base font-semibold text-white">恭喜发财，大吉大利</h4>
+            </div>
+
+            <!-- 金币“開”字按钮 -->
+            <button id="rp-open-btn" class="w-20 h-20 bg-amber-400 hover:bg-amber-300 rounded-full border-4 border-amber-500 flex items-center justify-center text-2xl font-bold text-red-700 shadow-lg cursor-pointer transform hover:scale-105 transition-transform duration-200">
+                開
+            </button>
+
+            <!-- 领取后的明细显示 (初始隐藏，拆开后显示) -->
+            <div id="rp-detail-view" class="hidden text-white space-y-2">
+                <span class="text-xs text-amber-100">已存入零钱钱包</span>
+                <h3 id="rp-detail-amount" class="text-3xl font-extrabold tech-font text-amber-300">¥ 0.00</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. 视频通话大屏 (Video Call Overlay) -->
+    <div id="video-call-overlay" class="fixed inset-0 bg-gray-900 z-[80] flex flex-col justify-between p-6 text-center text-white hidden">
+        <!-- 视频画面轨道 -->
+        <div class="absolute inset-0 z-0 overflow-hidden bg-slate-950 flex items-center justify-center">
+            <!-- 对方画面：如果没有真实视频，显示对方大头像 -->
+            <div id="remote-video-placeholder" class="w-32 h-32 rounded-full bg-emerald-500/20 border-4 border-emerald-400 flex items-center justify-center text-4xl font-bold animate-pulse">
+                呼
+            </div>
+            <!-- 如果建立 RTC，绑定此 video -->
+            <video id="remote-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+        </div>
+
+        <!-- 本地摄像头画面 PIP -->
+        <div class="absolute top-6 right-6 w-24 h-36 bg-gray-800 rounded-xl overflow-hidden border border-white/20 z-10 shadow-lg">
+            <video id="local-video" class="w-full h-full object-cover" autoplay playsinline muted></video>
+        </div>
+
+        <div class="z-10 mt-20 space-y-2">
+            <h3 id="video-caller-name" class="text-xl font-bold">张伟</h3>
+            <p id="video-call-status" class="text-xs text-emerald-400">正在等待对方接受邀请...</p>
+        </div>
+
+        <!-- 操控区 -->
+        <div class="z-10 mb-10 flex justify-center space-x-12">
+            <!-- 拒绝/挂断按钮 -->
+            <button onclick="hangupVideoCall()" class="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center hover:scale-105 transition active:scale-95 shadow-lg">
+                <i data-lucide="phone-off" class="w-6 h-6"></i>
+            </button>
+            <!-- 接受按钮 (仅在来电呼叫时显示) -->
+            <button id="video-accept-btn" onclick="acceptVideoCall()" class="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center hover:scale-105 transition active:scale-95 shadow-lg hidden">
+                <i data-lucide="phone" class="w-6 h-6"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 8. 创建群组与添加好友的迷你输入弹窗 -->
+    <div id="add-friend-modal" class="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-6 hidden">
+        <div class="bg-white w-full max-w-xs rounded-xl p-4 space-y-3">
+            <h4 class="text-sm font-bold text-gray-800">添加好友</h4>
+            <input type="tel" id="search-phone" placeholder="输入对方手机号..." class="w-full p-2 border border-gray-200 rounded text-xs focus:outline-none">
+            <div class="flex gap-2">
+                <button onclick="toggleAddFriendModal()" class="flex-1 py-2 bg-gray-100 text-gray-600 text-xs rounded">取消</button>
+                <button onclick="submitAddFriend()" class="flex-1 py-2 wx-green text-white text-xs rounded">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="create-group-modal" class="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-6 hidden">
+        <div class="bg-white w-full max-w-xs rounded-xl p-4 space-y-3">
+            <h4 class="text-sm font-bold text-gray-800">一键建群</h4>
+            <input type="text" id="group-name-input" placeholder="输入群聊名称..." class="w-full p-2 border border-gray-200 rounded text-xs focus:outline-none">
+            <div class="space-y-2 max-h-32 overflow-y-auto" id="group-friends-checkbox">
+                <!-- 好友多选 -->
+            </div>
+            <div class="flex gap-2">
+                <button onclick="toggleCreateGroupModal()" class="flex-1 py-2 bg-gray-100 text-gray-600 text-xs rounded">取消</button>
+                <button onclick="submitCreateGroup()" class="flex-1 py-2 wx-green text-white text-xs rounded">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全局轻量 Toast 提示 -->
+    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-black/85 text-white px-4 py-2 rounded-lg text-xs font-semibold pointer-events-none transition-all duration-300 opacity-0 translate-y-2 z-[200]">
+        提示消息
+    </div>
+
+    <!-- 9. 【发朋友圈】弹窗 (Publish Moment Modal) -->
+    <div id="publish-moment-modal" class="fixed inset-0 bg-white z-[80] flex flex-col hidden">
+        <header class="bg-[#ededed] px-4 py-3 flex justify-between items-center border-b border-gray-200">
+            <button onclick="closePublishMomentModal()" class="text-gray-600 text-sm">取消</button>
+            <h3 class="text-sm font-bold">发表动态</h3>
+            <button onclick="submitPublishMoment()" class="px-4 py-1.5 wx-green text-white text-xs font-semibold rounded-md">发表</button>
+        </header>
+        <div class="p-4 flex-grow space-y-4">
+            <textarea id="moment-text-input" placeholder="这一刻的想法..." class="w-full h-32 border-none resize-none focus:outline-none text-sm"></textarea>
+            <div class="text-xs text-gray-400">目前支持发布纯文本动态</div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化 Lucide 图标
+        lucide.createIcons();
+
+        // 纯代码合成音效管理器
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let ringtoneInterval = null;
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+
+            if (type === 'message') {
+                // 微信新消息提示音 (清脆急促)
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(1000, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'coin') {
+                // 拆红包的金币叮当声
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.setValueAtTime(1600, now + 0.08);
+                osc.frequency.setValueAtTime(2000, now + 0.16);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'ringtone-start') {
+                // 开启视频来电循环铃声
+                if (ringtoneInterval) return;
+                ringtoneInterval = setInterval(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.type = 'sine';
+                    // 经典的微信电话嘟嘟音
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.4);
+                }, 1000);
+            } else if (type === 'ringtone-stop') {
+                if (ringtoneInterval) {
+                    clearInterval(ringtoneInterval);
+                    ringtoneInterval = null;
+                }
+            }
+        }
+
+        // 轻量 Toast 提示
+        function showToast(text) {
+            const toast = document.getElementById('toast');
+            toast.innerText = text;
+            toast.classList.remove('opacity-0', 'translate-y-2');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-2');
+            }, 2000);
+        }
+
+        // ======================= 数据库 & 缓存管理 =======================
+        const db = {
+            getUsers: () => JSON.parse(localStorage.getItem('wx_users') || '{}'),
+            setUsers: (users) => localStorage.setItem('wx_users', JSON.stringify(users)),
+            getMessages: () => JSON.parse(localStorage.getItem('wx_messages') || '[]'),
+            setMessages: (messages) => {
+                localStorage.setItem('wx_messages', JSON.stringify(messages));
+                // 广播一个自定义事件以便本地其他标签刷新
+                localStorage.setItem('wx_sync_trigger', Date.now());
+            },
+            getGroups: () => JSON.parse(localStorage.getItem('wx_groups') || '[]'),
+            setGroups: (groups) => {
+                localStorage.setItem('wx_groups', JSON.stringify(groups));
+                localStorage.setItem('wx_sync_trigger', Date.now());
+            },
+            getMoments: () => JSON.parse(localStorage.getItem('wx_moments') || '[]'),
+            setMoments: (moments) => {
+                localStorage.setItem('wx_moments', JSON.stringify(moments));
+                localStorage.setItem('wx_sync_trigger', Date.now());
+            },
+            getCallState: () => JSON.parse(localStorage.getItem('wx_call_state') || 'null'),
+            setCallState: (state) => {
+                localStorage.setItem('wx_call_state', JSON.stringify(state));
+                localStorage.setItem('wx_sync_trigger', Date.now());
+            }
+        };
+
+        // 默认初始化一些模拟机器人账号和默认动态
+        function initMockDatabase() {
+            const users = db.getUsers();
+            if (!users['13800000001']) {
+                users['13800000001'] = { phone: '13800000001', name: '张伟 (智能助手)', pwd: '123', balance: 999.0 };
+                users['13800000002'] = { phone: '13800000002', name: '丽丽', pwd: '123', balance: 150.0 };
+                users['13800000003'] = { phone: '13800000003', name: '大迪 (千山翠车友)', pwd: '123', balance: 50.0 };
+                db.setUsers(users);
+            }
+            const moments = db.getMoments();
+            if (moments.length === 0) {
+                const defaultMoments = [
+                    {
+                        id: 'm1',
+                        phone: '13800000001',
+                        name: '张伟 (智能助手)',
+                        text: '今天开始开汉 EV 巡航，欢迎各位添加我的手机号 13800000001 找我聊天，还能加好友一键拉群发红包喔！🤖',
+                        timestamp: Date.now() - 3600000 * 2,
+                        likes: [],
+                        comments: []
+                    },
+                    {
+                        id: 'm2',
+                        phone: '13800000003',
+                        name: '大迪 (千山翠车友)',
+                        text: '好风景配好车，这个微信 PWA 真酷，在无痕浏览器里测试还能双开对聊！',
+                        timestamp: Date.now() - 3600000,
+                        likes: [],
+                        comments: []
+                    }
+                ];
+                db.setMoments(defaultMoments);
+            }
+        }
+        initMockDatabase();
+
+        // ======================= 用户注册 & 登录 =======================
+        let currentUser = null; // 当前登录账号
+
+        function checkLoginState() {
+            const saved = localStorage.getItem('wx_current_user');
+            if (saved) {
+                const phone = saved;
+                const users = db.getUsers();
+                if (users[phone]) {
+                    currentUser = users[phone];
+                    document.getElementById('auth-view').classList.add('hidden');
+                    document.getElementById('app-view').classList.remove('hidden');
+                    loadMePage();
+                    loadChatsTab();
+                    loadContactsTab();
+                    checkAndNotifyCall();
+                }
+            }
+        }
+
+        function handleRegister() {
+            const phone = document.getElementById('auth-phone').value.trim();
+            const pwd = document.getElementById('auth-pwd').value.trim();
+            if (!phone || !pwd) return showToast('请填写手机号和密码');
+            const users = db.getUsers();
+            if (users[phone]) return showToast('该手机号已注册');
+            
+            // 随机分配一个微信昵称
+            const nicknames = ['车主小白', '极智追风人', '绿野仙踪', '未来漫游者', '迪粉阿强'];
+            const name = nicknames[Math.floor(Math.random() * nicknames.length)] + '_' + phone.slice(-4);
+            
+            users[phone] = { phone, name, pwd, balance: 100.0, friends: ['13800000001', '13800000002'] }; // 默认附赠两个好友
+            db.setUsers(users);
+            showToast('注册成功！正在为您自动登录...');
+            setTimeout(() => {
+                document.getElementById('auth-phone').value = phone;
+                document.getElementById('auth-pwd').value = pwd;
+                handleLogin();
+            }, 1000);
+        }
+
+        function handleLogin() {
+            const phone = document.getElementById('auth-phone').value.trim();
+            const pwd = document.getElementById('auth-pwd').value.trim();
+            const users = db.getUsers();
+            if (!users[phone] || users[phone].pwd !== pwd) return showToast('账号或密码不匹配');
+
+            currentUser = users[phone];
+            localStorage.setItem('wx_current_user', phone);
+            
+            // 默认添加互为好友关系
+            ['13800000001', '13800000002'].forEach(friendPhone => {
+                if (!currentUser.friends) currentUser.friends = [];
+                if (!currentUser.friends.includes(friendPhone)) {
+                    currentUser.friends.push(friendPhone);
+                }
+            });
+            users[phone] = currentUser;
+            db.setUsers(users);
+
+            document.getElementById('auth-view').classList.add('hidden');
+            document.getElementById('app-view').classList.remove('hidden');
+            loadMePage();
+            loadChatsTab();
+            loadContactsTab();
+            showToast('登录成功');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('wx_current_user');
+            currentUser = null;
+            document.getElementById('auth-view').classList.remove('hidden');
+            document.getElementById('app-view').classList.add('hidden');
+        }
+
+        function loadMePage() {
+            if (!currentUser) return;
+            document.getElementById('me-name').innerText = currentUser.name;
+            document.getElementById('me-phone').innerText = '手机号: ' + currentUser.phone;
+            document.getElementById('me-avatar').innerText = currentUser.name.charAt(0);
+            document.getElementById('me-balance').innerText = '¥ ' + Number(currentUser.balance).toFixed(2);
+            document.getElementById('moments-cover-name').innerText = currentUser.name;
+            document.getElementById('moments-cover-avatar').innerText = currentUser.name.charAt(0);
+        }
+
+        function topUpBalance() {
+            if (!currentUser) return;
+            currentUser.balance = Number(currentUser.balance) + 100.0;
+            const users = db.getUsers();
+            users[currentUser.phone] = currentUser;
+            db.setUsers(users);
+            loadMePage();
+            showToast('已成功充值 100 元模拟币！');
+        }
+
+        // ======================= Tab 页面无缝切换 =======================
+        let activeTab = 'chats';
+        function switchTab(tabId) {
+            const tabs = ['chats', 'contacts', 'discover', 'me'];
+            tabs.forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`nav-${t}`).classList.remove('text-wx-green');
+                document.getElementById(`nav-${t}`).classList.add('text-gray-400');
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`nav-${tabId}`).classList.add('text-wx-green');
+            document.getElementById(`nav-${tabId}`).classList.remove('text-gray-400');
+            
+            // 切换时对应的数据加载
+            if (tabId === 'chats') loadChatsTab();
+            if (tabId === 'contacts') loadContactsTab();
+            if (tabId === 'me') loadMePage();
+            
+            // 修改顶栏名称
+            const titleMap = { 'chats': '微信', 'contacts': '通讯录', 'discover': '发现', 'me': '我' };
+            document.getElementById('header-title').innerText = titleMap[tabId];
+        }
+
+        // ======================= 微信消息与聊天机制 =======================
+        let activeChatSession = null; // 当前正在进行的聊天对象 (手机号或群组ID)
+        let isGroupChat = false;
+
+        function getChatList() {
+            if (!currentUser) return [];
+            const messages = db.getMessages();
+            const groups = db.getGroups();
+            const users = db.getUsers();
+
+            const list = [];
+            
+            // 1. 查找和个人的聊天（只要有消息发生）
+            const chatPartners = new Set();
+            messages.forEach(msg => {
+                if (!msg.isGroup) {
+                    if (msg.sender === currentUser.phone) chatPartners.add(msg.receiver);
+                    if (msg.receiver === currentUser.phone) chatPartners.add(msg.sender);
+                }
+            });
+
+            // 如果没消息但有默认好友，也默认拉入聊天会话列表
+            if (currentUser.friends) {
+                currentUser.friends.forEach(f => chatPartners.add(f));
+            }
+
+            chatPartners.forEach(phone => {
+                const partner = users[phone];
+                if (partner) {
+                    const sessionMsgs = messages.filter(m => !m.isGroup && ((m.sender === currentUser.phone && m.receiver === phone) || (m.sender === phone && m.receiver === currentUser.phone)));
+                    const lastMsg = sessionMsgs[sessionMsgs.length - 1];
+                    list.push({
+                        id: phone,
+                        name: partner.name,
+                        lastText: lastMsg ? (lastMsg.type === 'redpacket' ? '[微信红包]' : lastMsg.content) : '暂无消息',
+                        time: lastMsg ? new Date(lastMsg.time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'}) : '',
+                        isGroup: false,
+                        rawTime: lastMsg ? lastMsg.time : 0
+                    });
+                }
+            });
+
+            // 2. 查找我加入的群聊
+            groups.forEach(g => {
+                if (g.members.includes(currentUser.phone)) {
+                    const groupMsgs = messages.filter(m => m.isGroup && m.receiver === g.id);
+                    const lastMsg = groupMsgs[groupMsgs.length - 1];
+                    list.push({
+                        id: g.id,
+                        name: g.name,
+                        lastText: lastMsg ? `${lastMsg.senderName}: ${lastMsg.type === 'redpacket' ? '[微信红包]' : lastMsg.content}` : '新创建的群聊',
+                        time: lastMsg ? new Date(lastMsg.time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'}) : '',
+                        isGroup: true,
+                        rawTime: lastMsg ? lastMsg.time : 1
+                    });
+                }
+            });
+
+            // 排序：最新消息在最上方
+            return list.sort((a,b) => b.rawTime - a.rawTime);
+        }
+
+        function loadChatsTab() {
+            const list = getChatList();
+            const container = document.getElementById('tab-chats');
+            container.innerHTML = '';
+            
+            if (list.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-gray-400 text-xs">暂无活跃会话，点击右上角加好友聊天吧</div>`;
+                return;
+            }
+
+            list.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "flex items-center space-x-3 p-3 bg-white border-b border-gray-50 cursor-pointer hover:bg-gray-50";
+                div.onclick = () => openChatWindow(item.id, item.isGroup);
+                
+                div.innerHTML = `
+                    <div class="w-11 h-11 ${item.isGroup ? 'bg-emerald-600' : 'bg-gray-400'} rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                        ${item.name.charAt(0)}
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-semibold text-gray-800">${item.name}</span>
+                            <span class="text-[10px] text-gray-400">${item.time}</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1 truncate max-w-[200px]">${item.lastText}</p>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // 打开特定聊天窗口
+        function openChatWindow(sessionId, groupMode = false) {
+            activeChatSession = sessionId;
+            isGroupChat = groupMode;
+            
+            const users = db.getUsers();
+            const groups = db.getGroups();
+            
+            let title = '';
+            if (isGroupChat) {
+                const group = groups.find(g => g.id === sessionId);
+                title = group ? `${group.name} (${group.members.length})` : '群聊';
+                document.getElementById('chat-info-btn').onclick = () => showGroupMembers(sessionId);
+            } else {
+                const user = users[sessionId];
+                title = user ? user.name : '聊天';
+                document.getElementById('chat-info-btn').onclick = () => showToast('已添加为好友');
+            }
+
+            document.getElementById('chat-title').innerText = title;
+            document.getElementById('chat-window').classList.remove('hidden');
+            loadMessages();
+        }
+
+        function closeChatWindow() {
+            document.getElementById('chat-window').classList.add('hidden');
+            document.getElementById('chat-panel').classList.add('hidden');
+            activeChatSession = null;
+            loadChatsTab();
+        }
+
+        // 加载当前会话消息
+        function loadMessages() {
+            if (!activeChatSession) return;
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = '';
+            
+            const messages = db.getMessages();
+            const users = db.getUsers();
+
+            const sessionMsgs = messages.filter(m => {
+                if (isGroupChat) {
+                    return m.isGroup && m.receiver === activeChatSession;
+                } else {
+                    return !m.isGroup && ((m.sender === currentUser.phone && m.receiver === activeChatSession) || (m.sender === activeChatSession && m.receiver === currentUser.phone));
+                }
+            });
+
+            sessionMsgs.forEach(msg => {
+                const isMe = msg.sender === currentUser.phone;
+                const div = document.createElement('div');
+                div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} items-start space-x-2`;
+
+                // 头像
+                const avatar = `<div class="w-8 h-8 rounded bg-gray-400 flex items-center justify-center text-white font-semibold text-xs shrink-0">${msg.senderName.charAt(0)}</div>`;
+
+                // 消息气泡主体
+                let body = '';
+                if (msg.type === 'redpacket') {
+                    // 红包气泡渲染
+                    const isOpened = msg.extra && msg.extra.openedBy && msg.extra.openedBy.includes(currentUser.phone);
+                    body = `
+                        <div onclick="clickOpenRedPacket('${msg.id}')" class="bg-amber-500 hover:bg-amber-600 rounded-xl p-3 text-white flex items-center space-x-3 cursor-pointer shadow shadow-amber-600/30 w-52">
+                            <div class="p-2.5 bg-red-500 rounded-lg text-amber-200">
+                                <i data-lucide="gift" class="w-6 h-6"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h4 class="text-xs font-semibold">${msg.content}</h4>
+                                <span class="text-[9px] text-amber-100">${isOpened ? '红包已被拆开' : '微信红包'}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    body = `
+                        <div class="${isMe ? 'bg-[#95ec69] text-gray-800' : 'bg-white text-gray-800'} rounded-lg p-2.5 text-sm max-w-[240px] shadow-sm break-words">
+                            ${msg.content}
+                        </div>
+                    `;
+                }
+
+                div.innerHTML = isMe ? `${body}${avatar}` : `${avatar}<div><span class="text-[9px] text-gray-400 block mb-0.5">${msg.senderName}</span>${body}</div>`;
+                container.appendChild(div);
+            });
+
+            // 滚动到最底部
+            container.scrollTop = container.scrollHeight;
+            lucide.createIcons();
+        }
+
+        // 发送普通消息
+        function sendTextMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text || !activeChatSession) return;
+
+            const messages = db.getMessages();
+            const newMsg = {
+                id: 'msg_' + Date.now() + Math.random().toString(36).slice(2,5),
+                sender: currentUser.phone,
+                senderName: currentUser.name,
+                receiver: activeChatSession,
+                type: 'text',
+                content: text,
+                isGroup: isGroupChat,
+                time: Date.now()
+            };
+
+            messages.push(newMsg);
+            db.setMessages(messages);
+            input.value = '';
+            playSound('message');
+            loadMessages();
+
+            // 机器人自动触发响应机制
+            triggerBotResponse(text);
+        }
+
+        // AI/Bot 简易智能自动响应机
+        function triggerBotResponse(userText) {
+            if (isGroupChat) return; // 群聊内机器人暂时不泛滥回应
+            if (activeChatSession !== '13800000001') return; // 只有张伟机器人有应答
+
+            setTimeout(() => {
+                const messages = db.getMessages();
+                let botText = "微型微信 PWA 系统运转正常！您可以尝试使用侧边栏发红包、进行视频呼叫，或者在无痕浏览器中登录另一个账号体验实时收发消息。";
+                
+                if (userText.includes('红包')) {
+                    botText = "哇，点击对话框左侧的“＋”号可以包红包发给我噢！我也随时可以包红包给你。";
+                } else if (userText.includes('你好') || userText.includes('在吗')) {
+                    botText = "你好！我是你的智能客服小张。我们现在处于纯前端离线直连互通状态，你可以一键建群或者发布朋友圈动态！";
+                } else if (userText.includes('视频')) {
+                    botText = "视频通话请求需要打开本地摄像头许可。你可以随时邀请我，我会在一瞬间自动接听！";
+                }
+
+                const botMsg = {
+                    id: 'msg_bot_' + Date.now(),
+                    sender: '13800000001',
+                    senderName: '张伟 (智能助手)',
+                    receiver: currentUser.phone,
+                    type: 'text',
+                    content: botText,
+                    isGroup: false,
+                    time: Date.now()
+                };
+                messages.push(botMsg);
+                db.setMessages(messages);
+                playSound('message');
+                loadMessages();
+            }, 1200);
+        }
+
+        function toggleChatPanel() {
+            const panel = document.getElementById('chat-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        // ======================= 微信红包核心功能 =======================
+        let pendingRedPacketMsgId = null;
+
+        function openSendRedPacketModal() {
+            document.getElementById('send-redpacket-modal').classList.remove('hidden');
+            document.getElementById('rp-amount').value = '';
+            document.getElementById('rp-total-display').innerText = '¥ 0.00';
+            // 监听金额输入实时变动
+            document.getElementById('rp-amount').oninput = (e) => {
+                const val = parseFloat(e.target.value) || 0;
+                document.getElementById('rp-total-display').innerText = '¥ ' + val.toFixed(2);
+            };
+        }
+
+        function closeSendRedPacketModal() {
+            document.getElementById('send-redpacket-modal').classList.add('hidden');
+        }
+
+        // 提交发送红包消息
+        function submitSendRedPacket() {
+            const amount = parseFloat(document.getElementById('rp-amount').value);
+            const count = parseInt(document.getElementById('rp-count').value) || 1;
+            const desc = document.getElementById('rp-desc').value.trim() || '恭喜发财，大吉大利';
+
+            if (isNaN(amount) || amount <= 0) return showToast('请输入有效的红包金额');
+            if (currentUser.balance < amount) return showToast('模拟零钱钱包余额不足，请在“我”中充值');
+
+            // 扣减我自己的零钱钱包
+            currentUser.balance = Number(currentUser.balance) - amount;
+            const users = db.getUsers();
+            users[currentUser.phone] = currentUser;
+            db.setUsers(users);
+            loadMePage(); // 同步刷新“我”的页面余额显示
+
+            // 插入一条红包类型的聊天信息
+            const messages = db.getMessages();
+            const rpId = 'rp_' + Date.now();
+            const newMsg = {
+                id: 'msg_rp_' + Date.now(),
+                sender: currentUser.phone,
+                senderName: currentUser.name,
+                receiver: activeChatSession,
+                type: 'redpacket',
+                content: desc,
+                isGroup: isGroupChat,
+                time: Date.now(),
+                extra: {
+                    rpId: rpId,
+                    totalAmount: amount,
+                    count: count,
+                    remainAmount: amount,
+                    remainCount: count,
+                    openedBy: [], // 存储哪些手机号已经抢过了此红包
+                    detail: []    // 每次抢得的金额明细：[{phone, name, amount}]
+                }
+            };
+
+            messages.push(newMsg);
+            db.setMessages(messages);
+            closeSendRedPacketModal();
+            toggleChatPanel();
+            loadMessages();
+            showToast('红包发送成功');
+
+            // 如果是发给张伟（智能机器人），机器人 1 秒内会自动帮你把红包秒掉！
+            if (activeChatSession === '13800000001' && !isGroupChat) {
+                setTimeout(() => {
+                    const freshMsgs = db.getMessages();
+                    const targetMsg = freshMsgs.find(m => m.id === newMsg.id);
+                    if (targetMsg && targetMsg.extra) {
+                        const botGrab = amount; // 全部抢走
+                        targetMsg.extra.remainAmount = 0;
+                        targetMsg.extra.remainCount = 0;
+                        targetMsg.extra.openedBy.push('13800000001');
+                        targetMsg.extra.detail.push({ phone: '13800000001', name: '张伟 (智能助手)', amount: botGrab });
+                        db.setMessages(freshMsgs);
+                        
+                        // 发送回音文字气泡通知
+                        const grabMsg = {
+                            id: 'msg_grab_' + Date.now(),
+                            sender: '13800000001',
+                            senderName: '张伟 (智能助手)',
+                            receiver: currentUser.phone,
+                            type: 'text',
+                            content: `谢谢老板的红包！我抢到了 ${botGrab.toFixed(2)} 元！🧧`,
+                            isGroup: false,
+                            time: Date.now()
+                        };
+                        freshMsgs.push(grabMsg);
+                        db.setMessages(freshMsgs);
+                        loadMessages();
+                    }
+                }, 1500);
+            }
+        }
+
+        // 打开拆红包动效大屏
+        function clickOpenRedPacket(msgId) {
+            pendingRedPacketMsgId = msgId;
+            const messages = db.getMessages();
+            const msg = messages.find(m => m.id === msgId);
+            if (!msg || !msg.extra) return;
+
+            document.getElementById('rp-sender-name').innerText = msg.senderName + ' 的红包';
+            document.getElementById('rp-sender-desc').innerText = msg.content;
+            document.getElementById('rp-sender-avatar').innerText = msg.senderName.charAt(0);
+
+            // 如果我已经抢过了这个红包，直接显示抢过的金额，无需再点“開”
+            const alreadyOpened = msg.extra.openedBy.includes(currentUser.phone);
+            const openBtn = document.getElementById('rp-open-btn');
+            const detailView = document.getElementById('rp-detail-view');
+
+            if (alreadyOpened) {
+                const record = msg.extra.detail.find(d => d.phone === currentUser.phone);
+                document.getElementById('rp-detail-amount').innerText = '¥ ' + Number(record.amount).toFixed(2);
+                openBtn.classList.add('hidden');
+                detailView.classList.remove('hidden');
+            } else {
+                openBtn.classList.remove('hidden');
+                detailView.classList.add('hidden');
+                // 绑定点击事件，处理旋转动画并结算
+                openBtn.onclick = () => performOpenRedPacket(msgId);
+            }
+
+            document.getElementById('open-redpacket-overlay').classList.remove('hidden');
+        }
+
+        function closeOpenRedPacketOverlay() {
+            document.getElementById('open-redpacket-overlay').classList.add('hidden');
+            const openBtn = document.getElementById('rp-open-btn');
+            openBtn.classList.remove('animate-spin-coin');
+            pendingRedPacketMsgId = null;
+        }
+
+        // 拆红包拆开计算过程
+        function performOpenRedPacket(msgId) {
+            const openBtn = document.getElementById('rp-open-btn');
+            openBtn.classList.add('animate-spin-coin'); // 添加旋转动画效果
+
+            setTimeout(() => {
+                const messages = db.getMessages();
+                const msg = messages.find(m => m.id === msgId);
+                if (!msg || !msg.extra) return;
+
+                if (msg.extra.remainCount <= 0) {
+                    showToast('手慢了，红包已被领完！');
+                    closeOpenRedPacketOverlay();
+                    return;
+                }
+
+                // 计算随机手气红包金额
+                let grabAmount = 0;
+                if (msg.extra.remainCount === 1) {
+                    grabAmount = msg.extra.remainAmount;
+                } else {
+                    // 二倍均值法随机红包算法
+                    const max = (msg.extra.remainAmount / msg.extra.remainCount) * 2;
+                    grabAmount = Math.random() * max;
+                    if (grabAmount < 0.01) grabAmount = 0.01;
+                    grabAmount = Math.round(grabAmount * 100) / 100;
+                }
+
+                // 更新红包数据状态
+                msg.extra.remainAmount = Math.round((msg.extra.remainAmount - grabAmount) * 100) / 100;
+                msg.extra.remainCount -= 1;
+                msg.extra.openedBy.push(currentUser.phone);
+                msg.extra.detail.push({ phone: currentUser.phone, name: currentUser.name, amount: grabAmount });
+                
+                db.setMessages(messages);
+
+                // 给我的钱包塞入抢红包金额
+                currentUser.balance = Number(currentUser.balance) + grabAmount;
+                const users = db.getUsers();
+                users[currentUser.phone] = currentUser;
+                db.setUsers(users);
+
+                // 播放清脆硬币铃声
+                playSound('coin');
+
+                // 渲染拆开后金额界面
+                openBtn.classList.add('hidden');
+                document.getElementById('rp-detail-amount').innerText = '¥ ' + grabAmount.toFixed(2);
+                document.getElementById('rp-detail-view').classList.remove('hidden');
+                
+                loadMePage();
+                loadMessages();
+            }, 1000);
+        }
+
+        // ======================= 微信视频通话机制 (P2P 模拟) =======================
+        let localStream = null;
+
+        async function startVideoCall() {
+            if (activeChatSession === '13800000001') {
+                // 如果是机器人，直接开启极客仿真通话
+                document.getElementById('video-caller-name').innerText = '张伟 (智能助手)';
+                document.getElementById('video-call-status').innerText = '视频来电连接建立中...';
+                document.getElementById('video-call-overlay').classList.remove('hidden');
+                playSound('ringtone-start');
+
+                // 开启我的本地摄像头渲染
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    document.getElementById('local-video').srcObject = localStream;
+                } catch (e) {
+                    showToast('未检测到本地摄像头，已启用静态仿真画面。');
+                }
+
+                // 模拟对方在 1.5 秒后接听
+                setTimeout(() => {
+                    playSound('ringtone-stop');
+                    document.getElementById('video-call-status').innerText = '视频连接成功 [通话中 00:01]';
+                    document.getElementById('remote-video-placeholder').classList.remove('bg-emerald-500/20');
+                    document.getElementById('remote-video-placeholder').classList.add('bg-wx-green');
+                    document.getElementById('remote-video-placeholder').innerText = '张';
+                    showToast('通话建立成功');
+                }, 2000);
+            } else {
+                // 真实同机跨标签页呼叫！利用 localStorage 状态总线
+                const callState = {
+                    caller: currentUser.phone,
+                    receiver: activeChatSession,
+                    status: 'ringing', // ringing, connected, hungup
+                    time: Date.now()
+                };
+                db.setCallState(callState);
+                
+                document.getElementById('video-caller-name').innerText = activeChatSession;
+                document.getElementById('video-call-status').innerText = '正在呼叫对方，请在另一台浏览器窗口接听...';
+                document.getElementById('video-call-overlay').classList.remove('hidden');
+                playSound('ringtone-start');
+
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    document.getElementById('local-video').srcObject = localStream;
+                } catch (e) {}
+            }
+        }
+
+        // 监听并轮询/同步跨标签通话来电
+        function checkAndNotifyCall() {
+            const call = db.getCallState();
+            if (!call || call.status === 'hungup') {
+                if (!document.getElementById('video-call-overlay').classList.contains('hidden')) {
+                    hangupVideoCall();
+                }
+                return;
+            }
+
+            // 被叫方发现有来电响铃
+            if (call.receiver === currentUser.phone && call.status === 'ringing') {
+                playSound('ringtone-start');
+                document.getElementById('video-caller-name').innerText = call.caller;
+                document.getElementById('video-call-status').innerText = '邀请你进行视频通话...';
+                document.getElementById('video-accept-btn').classList.remove('hidden'); // 显示接受按钮
+                document.getElementById('video-call-overlay').classList.remove('hidden');
+            }
+
+            // 呼叫方发现对方已接听
+            if (call.caller === currentUser.phone && call.status === 'connected') {
+                playSound('ringtone-stop');
+                document.getElementById('video-call-status').innerText = '视频连接成功，本地测试完美通话中';
+            }
+        }
+
+        function acceptVideoCall() {
+            const call = db.getCallState();
+            if (call) {
+                call.status = 'connected';
+                db.setCallState(call);
+                
+                playSound('ringtone-stop');
+                document.getElementById('video-accept-btn').classList.add('hidden');
+                document.getElementById('video-call-status').innerText = '视频连接成功，本地测试完美通话中';
+
+                // 开启接听方的摄像头
+                navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+                    localStream = stream;
+                    document.getElementById('local-video').srcObject = localStream;
+                }).catch(e => {});
+            }
+        }
+
+        function hangupVideoCall() {
+            playSound('ringtone-stop');
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            document.getElementById('local-video').srcObject = null;
+            document.getElementById('video-call-overlay').classList.add('hidden');
+            document.getElementById('video-accept-btn').classList.add('hidden');
+
+            const call = db.getCallState();
+            if (call && call.status !== 'hungup') {
+                call.status = 'hungup';
+                db.setCallState(call);
+            }
+        }
+
+        // ======================= 微信发现页 & 朋友圈机制 =======================
+        function openMoments() {
+            document.getElementById('moments-badge').classList.add('hidden');
+            document.getElementById('moments-view').classList.remove('hidden');
+            loadMoments();
+        }
+
+        function closeMoments() {
+            document.getElementById('moments-view').classList.add('hidden');
+        }
+
+        function loadMoments() {
+            const container = document.getElementById('moments-list');
+            container.innerHTML = '';
+            const moments = db.getMoments();
+
+            moments.forEach(m => {
+                const card = document.createElement('div');
+                card.className = "py-4 flex space-x-3";
+                
+                const liked = m.likes.includes(currentUser.phone);
+                
+                let commentSection = '';
+                if (m.comments.length > 0) {
+                    commentSection = `
+                        <div class="mt-2 bg-gray-50 rounded p-2 text-xs text-gray-600 space-y-1">
+                            ${m.comments.map(c => `<div><span class="font-semibold text-blue-600">${c.name}:</span> ${c.text}</div>`).join('')}
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="w-10 h-10 rounded-lg bg-gray-300 flex items-center justify-center text-white font-bold shrink-0">${m.name.charAt(0)}</div>
+                    <div class="flex-grow space-y-1.5">
+                        <span class="text-xs font-bold text-blue-600 block">${m.name}</span>
+                        <p class="text-xs text-gray-800 leading-relaxed">${m.text}</p>
+                        
+                        <!-- 点赞互动栏 -->
+                        <div class="flex justify-between items-center text-[10px] text-gray-400">
+                            <span>${new Date(m.timestamp).toLocaleDateString()}</span>
+                            <div class="flex space-x-4">
+                                <button onclick="likeMoment('${m.id}')" class="flex items-center space-x-1 ${liked ? 'text-red-500 font-semibold' : 'hover:text-blue-500'}">
+                                    <i data-lucide="heart" class="w-3 h-3"></i> 
+                                    <span>${liked ? '已赞' : '点赞'} (${m.likes.length})</span>
+                                </button>
+                                <button onclick="commentMomentModal('${m.id}')" class="flex items-center space-x-1 hover:text-blue-500">
+                                    <i data-lucide="message-circle" class="w-3 h-3"></i>
+                                    <span>评论</span>
+                                </button>
+                            </div>
+                        </div>
+                        ${commentSection}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function likeMoment(momentId) {
+            const moments = db.getMoments();
+            const moment = moments.find(m => m.id === momentId);
+            if (moment) {
+                const idx = moment.likes.indexOf(currentUser.phone);
+                if (idx > -1) {
+                    moment.likes.splice(idx, 1);
+                } else {
+                    moment.likes.push(currentUser.phone);
+                }
+                db.setMoments(moments);
+                loadMoments();
+            }
+        }
+
+        function commentMomentModal(momentId) {
+            const text = prompt('请输入评论内容：');
+            if (!text || !text.trim()) return;
+            const moments = db.getMoments();
+            const moment = moments.find(m => m.id === momentId);
+            if (moment) {
+                moment.comments.push({
+                    phone: currentUser.phone,
+                    name: currentUser.name,
+                    text: text.trim()
+                });
+                db.setMoments(moments);
+                loadMoments();
+            }
+        }
+
+        function openPublishMomentModal() {
+            document.getElementById('publish-moment-modal').classList.remove('hidden');
+        }
+
+        function closePublishMomentModal() {
+            document.getElementById('publish-moment-modal').classList.add('hidden');
+            document.getElementById('moment-text-input').value = '';
+        }
+
+        function submitPublishMoment() {
+            const text = document.getElementById('moment-text-input').value.trim();
+            if (!text) return showToast('不能发布空白动态');
+
+            const moments = db.getMoments();
+            const newMoment = {
+                id: 'mom_' + Date.now(),
+                phone: currentUser.phone,
+                name: currentUser.name,
+                text: text,
+                timestamp: Date.now(),
+                likes: [],
+                comments: []
+            };
+
+            moments.unshift(newMoment); // 最新发布的排在最前面
+            db.setMoments(moments);
+            closePublishMomentModal();
+            loadMoments();
+            showToast('朋友圈动态发布成功');
+        }
+
+        // ======================= 加好友 & 建群功能 =======================
+        function toggleAddFriendModal() {
+            document.getElementById('add-friend-modal').classList.toggle('hidden');
+        }
+
+        function submitAddFriend() {
+            const phone = document.getElementById('search-phone').value.trim();
+            if (!phone) return;
+            const users = db.getUsers();
+            
+            if (!users[phone]) return showToast('未找到该手机号的用户');
+            if (phone === currentUser.phone) return showToast('不能添加自己为好友');
+
+            if (!currentUser.friends) currentUser.friends = [];
+            if (currentUser.friends.includes(phone)) return showToast('你们已经是好友了');
+
+            currentUser.friends.push(phone);
+            users[currentUser.phone] = currentUser;
+            
+            // 对方也默认添加我
+            if (!users[phone].friends) users[phone].friends = [];
+            users[phone].friends.push(currentUser.phone);
+            
+            db.setUsers(users);
+            toggleAddFriendModal();
+            loadContactsTab();
+            showToast('好友添加成功！');
+        }
+
+        function loadContactsTab() {
+            const cList = document.getElementById('contact-list');
+            cList.innerHTML = '';
+            const users = db.getUsers();
+
+            if (currentUser.friends && currentUser.friends.length > 0) {
+                currentUser.friends.forEach(fPhone => {
+                    const friend = users[fPhone];
+                    if (friend) {
+                        const div = document.createElement('div');
+                        div.className = "flex items-center space-x-3 p-3 bg-white border-b border-gray-50 cursor-pointer hover:bg-gray-50";
+                        div.onclick = () => openChatWindow(fPhone, false);
+                        div.innerHTML = `
+                            <div class="w-9 h-9 bg-gray-400 rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                                ${friend.name.charAt(0)}
+                            </div>
+                            <span class="text-sm font-semibold text-gray-800">${friend.name}</span>
+                        `;
+                        cList.appendChild(div);
+                    }
+                });
+            } else {
+                cList.innerHTML = `<div class="p-4 text-center text-gray-400 text-xs">暂无好友</div>`;
+            }
+
+            // 加载我的群聊
+            const gList = document.getElementById('group-list');
+            gList.innerHTML = '';
+            const groups = db.getGroups();
+            const myGroups = groups.filter(g => g.members.includes(currentUser.phone));
+
+            if (myGroups.length > 0) {
+                myGroups.forEach(g => {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center space-x-3 p-3 bg-white border-b border-gray-50 cursor-pointer hover:bg-gray-50";
+                    div.onclick = () => openChatWindow(g.id, true);
+                    div.innerHTML = `
+                        <div class="w-9 h-9 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                            ${g.name.charAt(0)}
+                        </div>
+                        <span class="text-sm font-semibold text-gray-800">${g.name} (${g.members.length}人)</span>
+                    `;
+                    gList.appendChild(div);
+                });
+            } else {
+                gList.innerHTML = `<div class="p-4 text-center text-gray-400 text-xs">暂无群聊</div>`;
+            }
+        }
+
+        function toggleCreateGroupModal() {
+            const modal = document.getElementById('create-group-modal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                // 渲染好友多选框
+                const container = document.getElementById('group-friends-checkbox');
+                container.innerHTML = '';
+                const users = db.getUsers();
+                if (currentUser.friends) {
+                    currentUser.friends.forEach(fPhone => {
+                        const friend = users[fPhone];
+                        if (friend) {
+                            const div = document.createElement('label');
+                            div.className = "flex items-center space-x-2 p-1 text-xs cursor-pointer";
+                            div.innerHTML = `
+                                <input type="checkbox" value="${fPhone}" class="rounded text-wx-green">
+                                <span>${friend.name}</span>
+                            `;
+                            container.appendChild(div);
+                        }
+                    });
+                }
+            }
+        }
+
+        function submitCreateGroup() {
+            const name = document.getElementById('group-name-input').value.trim() || '微信新群聊';
+            const checkboxes = document.querySelectorAll('#group-friends-checkbox input:checked');
+            const members = [currentUser.phone];
+            checkboxes.forEach(cb => members.push(cb.value));
+
+            if (members.length < 2) return showToast('群聊除您自己外至少包含1位好友');
+
+            const groups = db.getGroups();
+            const newGroup = {
+                id: 'group_' + Date.now(),
+                name: name,
+                members: members,
+                creator: currentUser.phone
+            };
+
+            groups.push(newGroup);
+            db.setGroups(groups);
+            toggleCreateGroupModal();
+            loadContactsTab();
+            showToast(`成功创建群聊【${name}】`);
+        }
+
+        function showGroupMembers(groupId) {
+            const groups = db.getGroups();
+            const group = groups.find(g => g.id === groupId);
+            if (group) {
+                const users = db.getUsers();
+                const names = group.members.map(p => users[p] ? users[p].name : p).join(', ');
+                alert(`群成员列表：\n${names}`);
+            }
+        }
+
+        // ======================= 跨标签页本地事件大同步（核心同步引擎） =======================
+        window.addEventListener('storage', (e) => {
+            // 每当 localStorage 有更新（说明在另一个无痕窗口发送了消息、发了朋友圈、或者呼叫了通话）
+            if (e.key === 'wx_sync_trigger') {
+                // 刷新主账号的内部对象，确保数据最新
+                if (currentUser) {
+                    const users = db.getUsers();
+                    if (users[currentUser.phone]) {
+                        currentUser = users[currentUser.phone];
+                    }
+                }
+                
+                // 实时重绘 UI
+                loadChatsTab();
+                loadContactsTab();
+                loadMessages();
+                loadMoments();
+                checkAndNotifyCall();
+                
+                // 新朋友圈badge红点提示
+                if (activeTab !== 'discover') {
+                    document.getElementById('moments-badge').classList.remove('hidden');
+                }
+            }
+        });
+
+        // 默认检测登录状态
+        checkLoginState();
+    </script>
+</body>
+</html>
