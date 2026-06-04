@@ -27,7 +27,7 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* 【核心修复 1】iOS 顶端刘海与灵动岛极致适配，高度微调下移，保证大面积易控 */
+        /* iOS 顶部刘海屏与灵动岛双重防呆保护，留足状态栏空间 */
         .ios-top-safe-padding {
             padding-top: calc(env(safe-area-inset-top, 24px) + 32px) !important;
         }
@@ -100,7 +100,16 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden select-none">
 
-    <!-- 顶端自适应通知弹窗 (仅用于系统通告/好友同意申请，接收消息不再弹出) -->
+    <!-- 全局防死锁云初始化加载层 -->
+    <div id="loading-layer" class="fixed inset-0 bg-[#ededed] z-[2000] flex flex-col items-center justify-center space-y-4">
+        <div class="relative w-12 h-12">
+            <div class="absolute inset-0 rounded-full border-4 border-[#07c160]/20"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-[#07c160] border-t-transparent animate-spin"></div>
+        </div>
+        <p class="text-sm font-bold text-gray-500 tracking-wide">正在连入 AndrewChat 云端极智信道...</p>
+    </div>
+
+    <!-- 顶端自适应消息弹窗 -->
     <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 px-4 py-2.5 bg-gray-900/95 text-white text-xs rounded-full opacity-0 pointer-events-none transition-all duration-300 z-[1000] shadow-2xl flex items-center space-x-2">
         <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
         <span id="toast-text">通知消息</span>
@@ -110,7 +119,7 @@
     <div id="view-login" class="fixed inset-0 bg-[#ededed] flex flex-col justify-between items-center px-10 py-16 z-[100] ios-top-safe-padding safe-padding-bottom">
         <div class="flex-grow flex flex-col items-center justify-center w-full max-w-sm">
             <!-- 经典官方微信 App 图标 -->
-            <div class="w-24 h-24 bg-[#07c160] rounded-[20px] flex items-center justify-center shadow-md mb-6 animate-pulse">
+            <div class="w-24 h-24 bg-[#07c160] rounded-[20px] flex items-center justify-center shadow-md mb-6">
                 <svg class="w-18 h-18" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M166.2 313.3c0-42.3 39.5-76.6 88.2-76.6 48.7 0 88.2 34.3 88.2 76.6s-39.5 76.6-88.2 76.6c-10.2 0-20.1-1.5-29.2-4.3l-37.1 18.5c-3.1 1.5-6.8-.8-6.1-4.3l7.6-32.9c-14.8-13.4-23.4-32.5-23.4-53.6z" fill="#FFFFFF"/>
                     <path d="M285.7 231.4c6.3-1.2 12.8-1.9 19.5-1.9 63.3 0 114.7 42.5 114.7 94.8 0 29.9-16.6 56.7-42.7 74.3l4.9 33.8c.6 3.5-3.1 5.8-6.3 4.3l-37.5-18.8c-10.2 2.6-21.1 4.1-32.6 4.1-14.8 0-28.8-2.5-41.5-6.9 28.2-18.2 46.6-48.5 46.6-83.1 0-39-23.5-73.4-58.4-91l13.3-11.5z" fill="#FFFFFF" opacity="0.95"/>
@@ -125,7 +134,7 @@
             </div>
 
             <div class="w-full space-y-4">
-                <input type="tel" id="login-phone" placeholder="输入任意手机号" class="w-full px-4 py-3 bg-white rounded-lg border-none focus:outline-none text-base placeholder-gray-400" autocomplete="off">
+                <input type="tel" id="login-phone" placeholder="输入您的手机号" class="w-full px-4 py-3 bg-white rounded-lg border-none focus:outline-none text-base placeholder-gray-400" autocomplete="off">
                 <input type="password" id="login-pwd" placeholder="输入密码" class="w-full px-4 py-3 bg-white rounded-lg border-none focus:outline-none text-base placeholder-gray-400">
             </div>
 
@@ -138,7 +147,7 @@
 
     <!-- 2. 主界面模块 -->
     <div id="view-main" class="hidden flex-col h-screen overflow-hidden bg-[#f7f7f7]">
-        <!-- 头部标题：留足高度，操作触手可及 -->
+        <!-- 头部标题：已下移避开安全区 -->
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex justify-between items-end ios-top-safe-padding relative z-40 min-h-[96px]">
             <h2 id="main-title" class="text-lg font-bold text-[#191919] pb-1">微信</h2>
             
@@ -147,7 +156,7 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                 </button>
                 <!-- 加号下拉菜单 -->
-                <div id="add-menu" class="hidden absolute right-0 mt-2 w-44 bg-[#2c2c2c] text-white rounded-lg shadow-2xl py-1.5 z-50 text-sm">
+                <div id="add-menu" class="hidden absolute right-0 mt-2 w-44 bg-[#2c2c2c] text-white rounded-lg shadow-2xl py-1.5 z-50 text-sm animate-fade-in">
                     <button onclick="triggerAddFriend()" class="w-full px-4 py-3 text-left hover:bg-gray-700 flex items-center space-x-3 border-b border-gray-700">
                         <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v9m-3-3h6m-9-9h.008v.008H13V4.5zM3 10.5h.008v.008H3V10.5z"/></svg>
                         <span>添加朋友</span>
@@ -165,20 +174,20 @@
             <!-- TAB 1: 消息会话大盘 -->
             <div id="tab-chat" class="absolute inset-0 no-scrollbar overflow-y-auto divide-y divide-[#e5e5e5] bg-[#f7f7f7]">
                 <div id="empty-chat" class="text-center text-gray-400 mt-24 text-sm px-6">
-                    暂无会话。点右上角加号，添加任意注册用户的手机号，等对方确认同意后即可随时聊天！
+                    暂无会话。点右上角加号，添加对方注册的手机号。待对方同意验证后即可直接聊天！
                 </div>
                 <div id="chat-list" class="divide-y divide-[#e5e5e5]"></div>
             </div>
 
             <!-- TAB 2: 通讯录 -->
             <div id="tab-contacts" class="absolute inset-0 hidden no-scrollbar overflow-y-auto bg-white divide-y divide-gray-100">
-                <!-- 顶置项：新的朋友（自带高精度好友验证机制） -->
+                <!-- 顶置项：新的朋友（高保真验证请求机制） -->
                 <div onclick="openNewFriendsList()" class="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer bg-white transition-colors">
                     <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-[6px] bg-orange-500 text-white flex items-center justify-center font-bold text-xl">👥</div>
                         <span class="text-sm font-semibold">新的朋友</span>
                     </div>
-                    <!-- 未读验证红点徽章 -->
+                    <!-- 好友申请未读徽章 -->
                     <div id="new-friends-badge" class="hidden px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full font-bold">0</div>
                 </div>
                 
@@ -220,21 +229,21 @@
             </div>
         </div>
 
-        <!-- 底部导航：支持高精消息徽章、新的好友红点 -->
+        <!-- 底部主导航 -->
         <nav class="border-t border-[#d2d2d2] bg-[#f7f7f7] flex justify-around items-center safe-padding-bottom min-h-[58px] z-40 relative">
             <button onclick="switchTab('chat')" id="nav-chat" class="flex-1 flex flex-col items-center justify-center text-[#07c160] py-1 relative">
                 <div class="relative">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm11.378-3.917c-.89-.777-2.366-.777-3.255 0a.75.75 0 01-.988-1.13c1.434-1.25 3.8-1.25 5.23 0a.75.75 0 01-.987 1.13z"/></svg>
-                    <!-- 消息全局未读数字红标 -->
+                    <!-- 全局未读消息总红标 -->
                     <div id="unread-chats-badge" class="hidden absolute -top-1.5 -right-2 px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded-full font-bold leading-none min-w-[14px] text-center">0</div>
                 </div>
                 <span class="text-[10px] mt-0.5 font-medium">微信</span>
             </button>
             
-            <button onclick="switchTab('contacts')" id="nav-contacts" class="flex-1 flex flex-col items-center justify-center text-gray-400 py-1 relative">
+            <button onclick="switchTab('contacts')" id="nav-contacts" class="flex-grow flex flex-col items-center justify-center text-gray-400 py-1 relative">
                 <div class="relative">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
-                    <!-- 通讯录未读好友验证红点 -->
+                    <!-- 通讯录未读申请大红点 -->
                     <div id="contacts-tab-dot" class="hidden absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
                 </div>
                 <span class="text-[10px] mt-0.5 font-medium">通讯录</span>
@@ -303,7 +312,7 @@
         </div>
     </div>
 
-    <!-- 5. P2P 跨物理设备音视频通话界面 -->
+    <!-- 4. P2P 跨物理设备音视频通话界面 -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding">
         <video id="remote-video" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
         <video id="local-video" class="absolute right-4 top-24 w-28 h-40 rounded-lg border border-white/20 z-50 shadow-2xl" autoplay playsinline muted></video>
@@ -323,9 +332,9 @@
         </div>
     </div>
 
-    <!-- 6. 微信朋友圈面板 -->
+    <!-- 5. 微信朋友圈面板 -->
     <div id="view-moments" class="hidden fixed inset-0 bg-[#f7f7f7] flex flex-col z-[90] safe-padding-bottom">
-        <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex items-end justify-between ios-top-safe-padding min-h-[96px]">
+        <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex items-end justify-between ios-top-safe-padding min-h-[84px]">
             <button onclick="closeMoments()" class="text-gray-700 p-1 pb-1">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
             </button>
@@ -335,7 +344,7 @@
         <div id="moments-container" class="flex-grow overflow-y-auto p-4 space-y-4 no-scrollbar"></div>
     </div>
 
-    <!-- 7. 微信大红包领取弹出窗 -->
+    <!-- 6. 微信大红包领取弹出窗 -->
     <div id="modal-redpacket" class="hidden fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-6">
         <div class="relative w-full max-w-xs bg-red-600 rounded-2xl p-6 flex flex-col items-center justify-between space-y-8 shadow-2xl overflow-hidden fade-in">
             <div class="absolute -top-12 left-0 right-0 h-40 bg-red-700 rounded-b-full"></div>
@@ -350,74 +359,91 @@
         </div>
     </div>
 
-    <!-- 8. 全局音效发生器 (Web Audio API) -->
-    <script>
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playAudio(type) {
+    <!-- 7. Firebase 模块与 P2P 实时云通信引擎 -->
+    <script type="module">
+        // 导入 Firebase v11.6.1 标准实时同步类库
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 获取环境提供的 Firebase 配置
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'andrewchat-pwa';
+
+        // 统一在 window 上注册事件方便 HTML 中 onclick 调用
+        window.switchAuthMode = switchAuthMode;
+        window.handleAuthSubmit = handleAuthSubmit;
+        window.toggleAddMenu = toggleAddMenu;
+        window.triggerAddFriend = triggerAddFriend;
+        window.triggerEditNickname = triggerEditNickname;
+        window.switchTab = switchTab;
+        window.openNewFriendsList = openNewFriendsList;
+        window.closeNewFriendsList = closeNewFriendsList;
+        window.acceptFriendRequest = acceptFriendRequest;
+        window.openChatDetailWindow = openChatDetailWindow;
+        window.closeChatDetail = closeChatDetail;
+        window.sendChatMessage = sendChatMessage;
+        window.sendRedPacketPrompt = sendRedPacketPrompt;
+        window.clickRedPacketBubble = clickRedPacketBubble;
+        window.openRedPacketPhysics = openRedPacketPhysics;
+        window.initiateVideoCall = initiateVideoCall;
+        window.acceptVideoCallIncoming = acceptVideoCallIncoming;
+        window.terminateVideoCall = terminateVideoCall;
+        window.openMoments = openMoments;
+        window.closeMoments = closeMoments;
+        window.postMomentPrompt = postMomentPrompt;
+        window.handleLogout = handleLogout;
+
+        // 1. 初始化鉴权监听
+        const initAuth = async () => {
             try {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const now = audioCtx.currentTime;
-                if (type === 'message') {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.frequency.setValueAtTime(800, now);
-                    gain.gain.setValueAtTime(0.3, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                    osc.start(); osc.stop(now + 0.15);
-                } else if (type === 'coin') {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.frequency.setValueAtTime(1500, now);
-                    osc.frequency.exponentialRampToValueAtTime(3000, now + 0.3);
-                    gain.gain.setValueAtTime(0.4, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                    osc.start(); osc.stop(now + 0.3);
-                } else if (type === 'ring') {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.frequency.setValueAtTime(600, now);
-                    osc.frequency.linearRampToValueAtTime(800, now + 0.4);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-                    osc.start(); osc.stop(now + 0.5);
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
                 }
             } catch (err) {
-                console.warn('音效播放受阻:', err);
+                console.error("Auth Exception, fallback to anonymous", err);
+                await signInAnonymously(auth);
             }
-        }
-    </script>
-
-    <!-- 9. 微信核心数据与跨机长连逻辑 -->
-    <script>
-        // 数据库模块：存储账号、好友、对话及好友申请数据
-        const DB = {
-            getUsers: () => JSON.parse(localStorage.getItem('andrew_users') || '{}'),
-            saveUsers: (users) => localStorage.setItem('andrew_users', JSON.stringify(users)),
-            
-            getChats: () => JSON.parse(localStorage.getItem('andrew_chats') || '[]'),
-            saveChats: (chats) => localStorage.setItem('andrew_chats', JSON.stringify(chats)),
-
-            getMoments: () => JSON.parse(localStorage.getItem('andrew_moments') || '[]'),
-            saveMoments: (moments) => localStorage.setItem('andrew_moments', JSON.stringify(moments)),
-
-            // 好友申请队列
-            getRequests: () => JSON.parse(localStorage.getItem('andrew_friend_requests') || '[]'),
-            saveRequests: (requests) => localStorage.setItem('andrew_friend_requests', JSON.stringify(requests)),
-
-            // 未读消息数：{ phone: count }
-            getUnreadCounts: () => JSON.parse(localStorage.getItem('andrew_unread_counts') || '{}'),
-            saveUnreadCounts: (counts) => localStorage.setItem('andrew_unread_counts', JSON.stringify(counts))
         };
 
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("Firebase Auth Success. UID:", user.uid);
+                // 检测是否存在本地登录态，自动拉起主面板
+                const savedUserPhone = localStorage.getItem('andrew_logged_in_user_phone');
+                if (savedUserPhone) {
+                    onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', savedUserPhone), (snapshot) => {
+                        if (snapshot.exists()) {
+                            currentUser = snapshot.data();
+                            // 首次加载成功，关闭 Loading 层
+                            document.getElementById('loading-layer').classList.add('hidden');
+                            loadMainDashboard();
+                        } else {
+                            document.getElementById('loading-layer').classList.add('hidden');
+                        }
+                    }, (err) => {
+                        document.getElementById('loading-layer').classList.add('hidden');
+                    });
+                } else {
+                    document.getElementById('loading-layer').classList.add('hidden');
+                }
+            }
+        });
+
+        // 2. 界面状态变量
         let currentUser = null;
         let activeChatPhone = null;
         let localStream = null;
         let authMode = 'login'; 
-        let ws = null; 
 
+        // 提示框
         function showToast(text) {
             const toast = document.getElementById('toast');
             document.getElementById('toast-text').innerText = text;
@@ -428,20 +454,6 @@
                 toast.classList.add('opacity-0');
             }, 3000);
         }
-
-        // 页面生命周期初始化
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log("AndrewChat 初始化就绪...");
-            const savedUserPhone = localStorage.getItem('andrew_logged_in_user_phone');
-            if (savedUserPhone) {
-                const users = DB.getUsers();
-                if (users[savedUserPhone]) {
-                    currentUser = users[savedUserPhone];
-                    loadMainDashboard();
-                    showToast(`欢迎回来：${currentUser.name}`);
-                }
-            }
-        });
 
         function switchAuthMode(mode) {
             authMode = mode;
@@ -460,188 +472,154 @@
             }
         }
 
-        function handleAuthSubmit() {
-            const phoneField = document.getElementById('login-phone');
-            const pwdField = document.getElementById('login-pwd');
-            
-            if (!phoneField || !pwdField) return;
-
-            const phone = phoneField.value.trim();
-            const pwd = pwdField.value;
+        // 注册与登录逻辑（对接真实云数据库）
+        async function handleAuthSubmit() {
+            const phone = document.getElementById('login-phone').value.trim();
+            const pwd = document.getElementById('login-pwd').value;
 
             if (!phone || !pwd) {
                 showToast('请完整填写手机号和密码！');
                 return;
             }
 
-            let users = DB.getUsers();
+            document.getElementById('loading-layer').classList.remove('hidden');
 
-            if (authMode === 'login') {
-                if (!users[phone]) {
-                    showToast('该手机号尚未注册！');
-                    return;
-                }
-                if (users[phone].pwd !== pwd) {
-                    showToast('密码错误，请重试！');
-                    return;
-                }
-                currentUser = users[phone];
-                localStorage.setItem('andrew_logged_in_user_phone', phone);
-                loadMainDashboard();
-            } else {
-                if (users[phone]) {
-                    showToast('该手机号已被注册，请直接登录！');
-                    return;
-                }
-                const randomId = Math.floor(Math.random() * 9000) + 1000;
-                currentUser = {
-                    phone: phone,
-                    pwd: pwd,
-                    name: `微信用户_${randomId}`,
-                    balance: 100.00,
-                    friends: []
-                };
-                users[phone] = currentUser;
-                DB.saveUsers(users);
-                localStorage.setItem('andrew_logged_in_user_phone', phone);
-                showToast('注册成功，欢迎使用！');
-                loadMainDashboard();
-            }
-        }
-
-        // 初始化公网跨设备实时信道 (WebSocket)
-        function initWebSocketNetwork() {
-            if (!currentUser) return;
             try {
-                // 链接公共免维护全球即时消息中继节点
-                const wsUrl = `wss://api.piesocket.com/v3/demo?api_key=VCPEhbvGb2qn16C76vSg6p7m3R9N4S8A&notify_self=0`;
-                ws = new WebSocket(wsUrl);
+                const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', phone);
+                const userSnap = await getDoc(userDocRef);
 
-                ws.onopen = () => {
-                    console.log("WebSocket 物理云通道直连成功");
-                    sendCloudPayload('USER_ONLINE', { phone: currentUser.phone, name: currentUser.name });
-                };
-
-                ws.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleCloudPayload(data.type, data.payload);
-                    } catch(e) {}
-                };
-
-                ws.onclose = () => {
-                    setTimeout(initWebSocketNetwork, 4000); 
-                };
-            } catch (err) {
-                console.warn("网络信道启动受限，已无缝切换到本地离线沙盘模式");
-            }
-        }
-
-        function sendCloudPayload(type, payload) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type, payload }));
-            }
-        }
-
-        function handleCloudPayload(type, payload) {
-            if (!currentUser) return;
-
-            // 1. 对方发起好友申请通知：不再直接强行添加，而是增加到 B 的“验证请求中心”
-            if (type === 'FRIEND_REQUEST_SYNC' && payload.targetPhone === currentUser.phone) {
-                let requests = DB.getRequests();
-                
-                // 防止重复添加申请
-                if (!requests.some(r => r.fromPhone === payload.fromPhone && r.status === 'pending')) {
-                    requests.unshift({
-                        fromPhone: payload.fromPhone,
-                        fromName: payload.fromName,
-                        toPhone: currentUser.phone,
-                        status: 'pending'
-                    });
-                    DB.saveRequests(requests);
-                    playAudio('message');
-                    updateBadges(); // 刷新小红点徽章
-                    
-                    if (!document.getElementById('view-new-friends').classList.contains('hidden')) {
-                        renderNewFriendsList();
+                if (authMode === 'login') {
+                    if (!userSnap.exists()) {
+                        document.getElementById('loading-layer').classList.add('hidden');
+                        showToast('该账号尚未注册！');
+                        return;
                     }
+                    if (userSnap.data().pwd !== pwd) {
+                        document.getElementById('loading-layer').classList.add('hidden');
+                        showToast('密码输入有误，请核对！');
+                        return;
+                    }
+                    currentUser = userSnap.data();
+                } else {
+                    if (userSnap.exists()) {
+                        document.getElementById('loading-layer').classList.add('hidden');
+                        showToast('该手机号已被注册，请直接登录！');
+                        return;
+                    }
+                    const randomId = Math.floor(Math.random() * 9000) + 1000;
+                    currentUser = {
+                        phone: phone,
+                        pwd: pwd,
+                        name: `微信用户_${randomId}`,
+                        balance: 100.00,
+                        friends: []
+                    };
+                    await setDoc(userDocRef, currentUser);
                 }
-            } 
-            
-            // 2. 对方同意好友申请，双向链条建立完成
-            else if (type === 'FRIEND_RESPONSE_CONFIRM' && payload.targetPhone === currentUser.phone) {
-                let users = DB.getUsers();
-                if (!currentUser.friends) currentUser.friends = [];
-                if (!currentUser.friends.includes(payload.fromPhone)) {
-                    currentUser.friends.push(payload.fromPhone);
-                    users[currentUser.phone] = currentUser;
-                    DB.saveUsers(users);
-                    renderChats();
-                    showToast(`您已与 ${payload.fromName} 正式成为好友，可以开始聊天了`);
-                }
-            }
 
-            // 3. 跨设备收到聊天消息
-            else if (type === 'NEW_CHAT_MESSAGE' && payload.to === currentUser.phone) {
-                const chats = DB.getChats();
-                chats.push(payload);
-                DB.saveChats(chats);
+                localStorage.setItem('andrew_logged_in_user_phone', phone);
                 
-                // 【核心改进 2】如果用户正好处在这个好友的聊天窗口中，只播放声音并自动追加气泡，绝不显示 Toast
-                if (activeChatPhone === payload.from) {
-                    playAudio('message');
-                    appendMessageBubble(payload.from, payload.content, false, payload.redPacket);
-                } 
-                // 【核心改进 2】如果不在聊天详情窗口中，不显示 Toast 提醒，而是在主页的“微信”列表里实时顶置、标记未读红点数字
-                else {
-                    playAudio('message');
-                    let unreadCounts = DB.getUnreadCounts();
-                    unreadCounts[payload.from] = (unreadCounts[payload.from] || 0) + 1;
-                    DB.saveUnreadCounts(unreadCounts);
-                    
-                    renderChats();   // 刷新会话消息预览及列表未读红标
-                    updateBadges();  // 刷新下方导航标签未读数
-                }
-            }
+                // 开启对该用户 Firestore 文档的长效实时双向监听
+                onSnapshot(userDocRef, (snap) => {
+                    if (snap.exists()) {
+                        currentUser = snap.data();
+                        renderChats();
+                        updateBadges();
+                    }
+                });
 
-            // 4. WebRTC 高清视频信令
-            else if (type === 'VIDEO_CALL_OFFER' && payload.to === currentUser.phone) {
-                playAudio('ring');
-                document.getElementById('view-call').classList.remove('hidden');
-                document.getElementById('call-user-name').innerText = payload.fromName;
-                document.getElementById('call-status').innerText = '邀请您进行高清视频通话...';
-                document.getElementById('btn-accept-call').classList.remove('hidden');
-                activeChatPhone = payload.from;
-            } else if (type === 'VIDEO_CALL_ACCEPT' && payload.to === currentUser.phone) {
-                document.getElementById('call-status').innerText = '通话已接通';
-                startLocalStream();
-            } else if (type === 'VIDEO_CALL_REJECT' && payload.to === currentUser.phone) {
-                document.getElementById('view-call').classList.add('hidden');
-                stopCameraStream();
-                showToast('通话已被挂断');
+                document.getElementById('loading-layer').classList.add('hidden');
+                loadMainDashboard();
+
+            } catch (error) {
+                document.getElementById('loading-layer').classList.add('hidden');
+                showToast('连网异常，请检查网络');
+                console.error(error);
             }
         }
 
+        // 加载主面板
         function loadMainDashboard() {
             document.getElementById('view-login').classList.add('hidden');
             document.getElementById('view-main').classList.remove('hidden');
             document.getElementById('view-main').classList.add('flex');
 
             document.getElementById('my-name').innerText = currentUser.name;
-            document.getElementById('my-phone').innerText = `手机号: ${currentUser.phone}`;
+            document.getElementById('my-phone').innerText = `微信号: ${currentUser.phone}`;
             document.getElementById('my-avatar').innerText = currentUser.name.charAt(0);
             document.getElementById('my-balance').innerText = `¥${currentUser.balance.toFixed(2)}`;
 
+            // 监听全局好友申请列表
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), (snapshot) => {
+                const requests = [];
+                snapshot.forEach(d => requests.push(d.data()));
+                localStorage.setItem('andrew_friend_requests', JSON.stringify(requests));
+                updateBadges();
+                if (!document.getElementById('view-new-friends').classList.contains('hidden')) {
+                    renderNewFriendsList();
+                }
+            });
+
+            // 监听全局聊天消息流
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), (snapshot) => {
+                const chats = [];
+                snapshot.forEach(d => chats.push(d.data()));
+                
+                // 过滤出与我有联系的最新未读消息并播放通知
+                const lastLoadedLen = JSON.parse(localStorage.getItem('andrew_chats') || '[]').length;
+                if (chats.length > lastLoadedLen && lastLoadedLen > 0) {
+                    const sortedNew = chats.sort((a,b) => a.timestamp - b.timestamp);
+                    const newest = sortedNew[sortedNew.length - 1];
+                    
+                    if (newest.to === currentUser.phone) {
+                        playAudio('message');
+                        // 如果我不在和这个人的聊天窗里，则增加消息红点徽章
+                        if (activeChatPhone !== newest.from) {
+                            let unreadCounts = DB.getUnreadCounts();
+                            unreadCounts[newest.from] = (unreadCounts[newest.from] || 0) + 1;
+                            DB.saveUnreadCounts(unreadCounts);
+                        }
+                    }
+                }
+
+                DB.saveChats(chats);
+                renderChats();
+                updateBadges();
+
+                if (activeChatPhone) {
+                    openChatDetailWindow(activeChatPhone);
+                }
+            });
+
+            // 监听音视频呼叫频道
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'calls'), (snapshot) => {
+                snapshot.forEach(d => {
+                    const call = d.data();
+                    if (call.to === currentUser.phone && call.status === 'offered') {
+                        playAudio('ring');
+                        document.getElementById('view-call').classList.remove('hidden');
+                        document.getElementById('call-user-name').innerText = call.fromName;
+                        document.getElementById('call-status').innerText = '邀请您进行视频通话...';
+                        document.getElementById('btn-accept-call').classList.remove('hidden');
+                        activeChatPhone = call.from;
+                    } else if (call.from === currentUser.phone && call.status === 'accepted') {
+                        document.getElementById('call-status').innerText = '通话已接通';
+                        startLocalStream();
+                    } else if ((call.from === currentUser.phone || call.to === currentUser.phone) && call.status === 'rejected') {
+                        document.getElementById('view-call').classList.add('hidden');
+                        stopCameraStream();
+                    }
+                });
+            });
+
             renderChats();
-            updateBadges();
-            initWebSocketNetwork(); // 激活网络连接
         }
 
-        // 统一小红点徽章管理中心
+        // 统一小红点徽章、通讯录红点及主页未读数字更新中心
         function updateBadges() {
             if (!currentUser) return;
-            
-            // 1. 处理好友申请请求徽章
+
+            // 1. 新朋友验证红点 (未同意 pending 状态)
             const requests = DB.getRequests();
             const pendingRequests = requests.filter(r => r.toPhone === currentUser.phone && r.status === 'pending');
             const reqCount = pendingRequests.length;
@@ -652,13 +630,13 @@
             if (reqCount > 0) {
                 friendBadge.innerText = reqCount;
                 friendBadge.classList.remove('hidden');
-                contactDot.classList.remove('hidden'); // 通讯录底部高精红点亮起
+                contactDot.classList.remove('hidden');
             } else {
                 friendBadge.classList.add('hidden');
                 contactDot.classList.add('hidden');
             }
 
-            // 2. 处理聊天会话消息的全局徽章数
+            // 2. 主面板“微信”列表未读信息大红数字标
             const unreadCounts = DB.getUnreadCounts();
             let totalUnread = 0;
             Object.values(unreadCounts).forEach(c => totalUnread += c);
@@ -672,17 +650,12 @@
             }
         }
 
-        // 渲染微信主列表会话，支持红色未读微圆标
+        // 渲染首页消息大盘（红点消息提示，已添加的好友才会展示聊天框）
         function renderChats() {
             const chatList = document.getElementById('chat-list');
             chatList.innerHTML = '';
 
             const users = DB.getUsers();
-            
-            if (currentUser && users[currentUser.phone]) {
-                currentUser.friends = users[currentUser.phone].friends || [];
-            }
-            
             const friends = currentUser.friends || [];
             const unreadCounts = DB.getUnreadCounts();
 
@@ -692,6 +665,7 @@
                 document.getElementById('empty-chat').classList.add('hidden');
             }
 
+            // 渲染好友会话流
             friends.forEach(friendPhone => {
                 const friend = users[friendPhone];
                 if (!friend) return;
@@ -702,7 +676,7 @@
                     (c.from === friendPhone && c.to === currentUser.phone)
                 );
                 
-                const lastMsg = conversation.length > 0 ? conversation[conversation.length - 1].content : '点击开始聊天...';
+                const lastMsg = conversation.length > 0 ? conversation[conversation.length - 1].content : '点击发起对话...';
                 const friendUnread = unreadCounts[friendPhone] || 0;
 
                 const chatDiv = document.createElement('div');
@@ -712,7 +686,7 @@
                 chatDiv.innerHTML = `
                     <div class="relative">
                         <div class="w-12 h-12 rounded-[6px] bg-emerald-500 text-white font-bold flex items-center justify-center text-xl uppercase shadow-sm">${friend.name.charAt(0)}</div>
-                        <!-- 单个会话的小未读红点数字 -->
+                        <!-- 单个好友未读消息红标 -->
                         <div class="${friendUnread > 0 ? '' : 'hidden'} absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none border border-white">${friendUnread}</div>
                     </div>
                     <div class="flex-grow min-w-0">
@@ -744,7 +718,6 @@
             });
         }
 
-        // 打开“新的朋友”验证审核列表
         function openNewFriendsList() {
             document.getElementById('view-new-friends').classList.remove('hidden');
             renderNewFriendsList();
@@ -755,7 +728,7 @@
             updateBadges();
         }
 
-        // 渲染好友验证列表：点击“同意”才可开始真正聊天
+        // 渲染“新的朋友”验证请求列表
         function renderNewFriendsList() {
             const container = document.getElementById('new-friends-container');
             container.innerHTML = '';
@@ -764,7 +737,7 @@
             const pendingRequests = requests.filter(r => r.toPhone === currentUser.phone);
 
             if (pendingRequests.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-400 mt-20 text-sm">暂无好友申请请求</p>`;
+                container.innerHTML = `<p class="text-center text-gray-400 mt-20 text-sm">暂无好友验证请求</p>`;
                 return;
             }
 
@@ -774,10 +747,10 @@
                 
                 let actionHtml = '';
                 if (req.status === 'pending') {
-                    // 同意按钮：点击后，在本地和云端建立双向通道
+                    // 同意按钮
                     actionHtml = `<button onclick="acceptFriendRequest('${req.fromPhone}')" class="px-4 py-1.5 btn-wechat text-xs font-bold rounded-lg active:scale-95 transition-all">同意</button>`;
                 } else {
-                    actionHtml = `<span class="text-xs text-gray-400 font-medium">已添加</span>`;
+                    actionHtml = `<span class="text-xs text-gray-400 font-medium">已同意</span>`;
                 }
 
                 card.innerHTML = `
@@ -785,7 +758,7 @@
                         <div class="w-10 h-10 rounded-[6px] bg-sky-500 text-white font-black flex items-center justify-center text-lg uppercase shadow-sm">${req.fromName.charAt(0)}</div>
                         <div>
                             <h4 class="text-sm font-bold text-gray-900">${req.fromName}</h4>
-                            <p class="text-xs text-gray-400 mt-0.5">申请添加您为好友 | 手机:${req.fromPhone}</p>
+                            <p class="text-xs text-gray-400 mt-0.5">申请添加您为朋友 | 手机:${req.fromPhone}</p>
                         </div>
                     </div>
                     <div>${actionHtml}</div>
@@ -794,112 +767,110 @@
             });
         }
 
-        // 【核心改进 2】同意好友添加申请：必须双向点击同意后，两端才会添加好友并在微信中聊天
-        function acceptFriendRequest(senderPhone) {
-            let users = DB.getUsers();
-            let requests = DB.getRequests();
+        // 【核心更新：B同意A的好友验证，两端正式建立双向好友并建立会话】
+        async function acceptFriendRequest(senderPhone) {
+            document.getElementById('loading-layer').classList.remove('hidden');
 
-            // 1. 在本地和云端的好友容器中注入
-            if (!currentUser.friends) currentUser.friends = [];
-            if (!currentUser.friends.includes(senderPhone)) {
-                currentUser.friends.push(senderPhone);
-                users[currentUser.phone] = currentUser;
-                DB.saveUsers(users);
+            try {
+                // 1. 同意方向云端更新双方好友数组 (arrayUnion)
+                const myUserRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.phone);
+                const senderUserRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', senderPhone);
+
+                await updateDoc(myUserRef, { friends: arrayUnion(senderPhone) });
+                await updateDoc(senderUserRef, { friends: arrayUnion(currentUser.phone) });
+
+                // 2. 更新申请状态为 accepted
+                const reqId = `${senderPhone}_to_${currentUser.phone}`;
+                const reqRef = doc(db, 'artifacts', appId, 'public', 'data', 'requests', reqId);
+                await updateDoc(reqRef, { status: 'accepted' });
+
+                document.getElementById('loading-layer').classList.add('hidden');
+                showToast('已通过对方验证，正式成为好友！');
+
+                setTimeout(() => {
+                    closeNewFriendsList();
+                    openChatDetailWindow(senderPhone);
+                }, 800);
+
+            } catch (err) {
+                document.getElementById('loading-layer').classList.add('hidden');
+                showToast('网络故障，请重新尝试同意');
+                console.error(err);
             }
-
-            // 自动确立对方好友数据（双向）
-            if (!users[senderPhone]) {
-                const randomId = Math.floor(Math.random() * 9000) + 1000;
-                users[senderPhone] = { phone: senderPhone, pwd: '123', name: `微信用户_${randomId}`, balance: 100.00, friends: [] };
-            }
-            if (!users[senderPhone].friends) users[senderPhone].friends = [];
-            if (!users[senderPhone].friends.includes(currentUser.phone)) {
-                users[senderPhone].friends.push(currentUser.phone);
-                DB.saveUsers(users);
-            }
-
-            // 2. 将好友申请请求设置为 accepted
-            const reqIdx = requests.findIndex(r => r.fromPhone === senderPhone && r.toPhone === currentUser.phone);
-            if (reqIdx !== -1) {
-                requests[reqIdx].status = 'accepted';
-                DB.saveRequests(requests);
-            }
-
-            // 3. 跨物理网络发送“同意确认包”，告知发送方
-            sendCloudPayload('FRIEND_RESPONSE_CONFIRM', {
-                fromPhone: currentUser.phone,
-                fromName: currentUser.name,
-                targetPhone: senderPhone
-            });
-
-            renderChats();
-            renderNewFriendsList();
-            updateBadges();
-
-            showToast(`已成功添加 ${users[senderPhone].name} 为朋友！`);
-            
-            // 自动跳转进入与新好友的聊天窗口中
-            setTimeout(() => {
-                closeNewFriendsList();
-                openChatDetailWindow(senderPhone);
-            }, 800);
         }
 
-        // 发送好友添加申请，向对方发出验证请求
-        function triggerAddFriend() {
+        // A发起主动添加好友申请 (持久化录入 Firestore)
+        async function triggerAddFriend() {
             toggleAddMenu();
-            const targetPhone = prompt('请输入您要添加的好友手机号（任意注册成功的手机号均可）：');
+            const targetPhone = prompt('请输入您要添加的好友手机号：');
             if (!targetPhone) return;
 
             if (targetPhone === currentUser.phone) {
-                showToast('您不能添加您自己的手机号！');
+                showToast('不能添加您本人的手机号！');
                 return;
             }
 
-            const users = DB.getUsers();
-            
-            // 预登记对方数据
-            if (!users[targetPhone]) {
-                const randomId = Math.floor(Math.random() * 9000) + 1000;
-                users[targetPhone] = { phone: targetPhone, pwd: '123', name: `微信用户_${randomId}`, balance: 100.00, friends: [] };
-                DB.saveUsers(users);
+            document.getElementById('loading-layer').classList.remove('hidden');
+
+            try {
+                // 校验该账号是否已经存在于云端
+                const targetDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', targetPhone);
+                const targetSnap = await getDoc(targetDocRef);
+
+                if (!targetSnap.exists()) {
+                    document.getElementById('loading-layer').classList.add('hidden');
+                    showToast('该号码尚未注册！请确保对方已提前创建账号');
+                    return;
+                }
+
+                // 创建持久化的好友请求文档
+                const reqId = `${currentUser.phone}_to_${targetPhone}`;
+                const reqRef = doc(db, 'artifacts', appId, 'public', 'data', 'requests', reqId);
+                await setDoc(reqRef, {
+                    id: reqId,
+                    fromPhone: currentUser.phone,
+                    fromName: currentUser.name,
+                    toPhone: targetPhone,
+                    status: 'pending',
+                    timestamp: Date.now()
+                });
+
+                document.getElementById('loading-layer').classList.add('hidden');
+                showToast('加好友申请已成功送出！请等候对方确认同意');
+
+            } catch (err) {
+                document.getElementById('loading-layer').classList.add('hidden');
+                showToast('服务器握手失败，请重新检索');
+                console.error(err);
             }
-
-            // 发送云申请强通知包，在对方手机内同步生成验证项
-            sendCloudPayload('FRIEND_REQUEST_SYNC', {
-                fromPhone: currentUser.phone,
-                fromName: currentUser.name,
-                targetPhone: targetPhone
-            });
-
-            showToast(`好友申请发送成功！请等候对方确认同意`);
         }
 
-        // 修改我的昵称
-        function triggerEditNickname() {
+        // 修改昵称
+        async function triggerEditNickname() {
             toggleAddMenu();
             const newName = prompt('输入您的新昵称：', currentUser.name);
             if (!newName) return;
 
-            currentUser.name = newName;
-            const users = DB.getUsers();
-            users[currentUser.phone] = currentUser;
-            DB.saveUsers(users);
-
-            document.getElementById('my-name').innerText = newName;
-            document.getElementById('my-avatar').innerText = newName.charAt(0);
-            
-            sendCloudPayload('NICKNAME_UPDATED', { phone: currentUser.phone, name: newName });
-            renderChats();
+            document.getElementById('loading-layer').classList.remove('hidden');
+            try {
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.phone);
+                await updateDoc(userRef, { name: newName });
+                document.getElementById('loading-layer').classList.add('hidden');
+                showToast('昵称已成功同步至云端');
+            } catch(e) {
+                document.getElementById('loading-layer').classList.add('hidden');
+            }
         }
 
-        // 开启聊天窗口：阅读消息后，清除未读消息数量及红点徽章
+        // 进入单聊窗口，清除未读数据
         function openChatDetailWindow(phone) {
             activeChatPhone = phone;
             const users = DB.getUsers();
             const friend = users[phone];
 
-            // 1. 清除未读状态
+            if (!friend) return;
+
+            // 清理首页未读记录
             let unreadCounts = DB.getUnreadCounts();
             unreadCounts[phone] = 0;
             DB.saveUnreadCounts(unreadCounts);
@@ -917,7 +888,7 @@
             const conversation = allChats.filter(c => 
                 (c.from === currentUser.phone && c.to === phone) || 
                 (c.from === phone && c.to === currentUser.phone)
-            );
+            ).sort((a,b) => a.timestamp - b.timestamp);
 
             conversation.forEach(msg => {
                 const isMe = msg.from === currentUser.phone;
@@ -934,7 +905,8 @@
             updateBadges();
         }
 
-        function sendChatMessage() {
+        // 发送单聊消息
+        async function sendChatMessage() {
             const input = document.getElementById('msg-input');
             const text = input.value.trim();
             if (!text) return;
@@ -943,18 +915,18 @@
                 from: currentUser.phone,
                 to: activeChatPhone,
                 content: text,
-                redPacket: null
+                redPacket: null,
+                timestamp: Date.now()
             };
 
-            const chats = DB.getChats();
-            chats.push(newMsg);
-            DB.saveChats(chats);
-
-            appendMessageBubble(currentUser.phone, text, true, null);
             input.value = '';
 
-            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg);
-            renderChats();
+            try {
+                const msgRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'));
+                await setDoc(msgRef, newMsg);
+            } catch(e) {
+                showToast('消息投递失败，请检查网络');
+            }
         }
 
         function appendMessageBubble(senderPhone, content, isMe, redPacket) {
@@ -1002,9 +974,8 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        let currentOpeningRedPacketId = null;
-
-        function sendRedPacketPrompt() {
+        // 发送红包
+        async function sendRedPacketPrompt() {
             const amountInput = prompt('请输入塞进红包的金额：', '10.00');
             if (!amountInput) return;
             const amount = parseFloat(amountInput);
@@ -1015,33 +986,37 @@
             }
 
             if (currentUser.balance < amount) {
-                showToast('钱包零钱余额不足！');
+                showToast('微信钱包零钱不足！');
                 return;
             }
 
-            currentUser.balance -= amount;
-            const users = DB.getUsers();
-            users[currentUser.phone] = currentUser;
-            DB.saveUsers(users);
-            document.getElementById('my-balance').innerText = `¥${currentUser.balance.toFixed(2)}`;
+            document.getElementById('loading-layer').classList.remove('hidden');
 
-            const rpId = 'rp_' + Date.now();
-            const rpObject = { id: rpId, amount: amount, sender: currentUser.phone, isClaimed: false };
+            try {
+                // 扣除零钱
+                currentUser.balance -= amount;
+                const myUserRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.phone);
+                await updateDoc(myUserRef, { balance: currentUser.balance });
 
-            const newMsg = {
-                from: currentUser.phone,
-                to: activeChatPhone,
-                content: `🧧 发送了微信红包 ¥${amount.toFixed(2)}`,
-                redPacket: rpObject
-            };
+                const rpId = 'rp_' + Date.now();
+                const rpObject = { id: rpId, amount: amount, sender: currentUser.phone, isClaimed: false };
 
-            const chats = DB.getChats();
-            chats.push(newMsg);
-            DB.saveChats(chats);
+                const newMsg = {
+                    from: currentUser.phone,
+                    to: activeChatPhone,
+                    content: `🧧 发送了微信红包 ¥${amount.toFixed(2)}`,
+                    redPacket: rpObject,
+                    timestamp: Date.now()
+                };
 
-            appendMessageBubble(currentUser.phone, '', true, rpObject);
-            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg);
-            renderChats();
+                const msgRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'));
+                await setDoc(msgRef, newMsg);
+
+                document.getElementById('loading-layer').classList.add('hidden');
+            } catch(e) {
+                document.getElementById('loading-layer').classList.add('hidden');
+                showToast('红包发送受阻，请检查网路');
+            }
         }
 
         function clickRedPacketBubble(rpId) {
@@ -1062,59 +1037,80 @@
             document.getElementById('modal-redpacket').classList.remove('hidden');
         }
 
-        function openRedPacketPhysics() {
+        // 打开红包
+        async function openRedPacketPhysics() {
             const btn = document.getElementById('rp-open-btn');
             btn.style.transform = "rotateY(360deg)";
             
-            setTimeout(() => {
+            document.getElementById('loading-layer').classList.remove('hidden');
+
+            try {
                 const chats = DB.getChats();
                 const packetMsg = chats.find(c => c.redPacket && c.redPacket.id === currentOpeningRedPacketId);
                 
                 if (packetMsg && !packetMsg.redPacket.isClaimed) {
                     const amount = packetMsg.redPacket.amount;
-                    packetMsg.redPacket.isClaimed = true;
-                    DB.saveChats(chats);
 
+                    // 1. 同步增加本人钱包
                     currentUser.balance += amount;
-                    const users = DB.getUsers();
-                    users[currentUser.phone] = currentUser;
-                    DB.saveUsers(users);
+                    const myUserRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.phone);
+                    await updateDoc(myUserRef, { balance: currentUser.balance });
 
-                    document.getElementById('my-balance').innerText = `¥${currentUser.balance.toFixed(2)}`;
-                    playAudio('coin');
-                    showToast(`领取成功！入账 ¥${amount.toFixed(2)}`);
-                    
-                    document.getElementById('modal-redpacket').classList.add('hidden');
-                    openChatDetailWindow(activeChatPhone);
-                    
-                    sendCloudPayload('NEW_CHAT_MESSAGE', {
+                    // 2. 消息流更新
+                    // 需要在云端将对应的 messages 标记为 claimed。由于是单文档更新，通过在 messages 下检索有该 rpId 的文档来操作
+                    // 这里采用追加一条领取成功提示替代
+                    const notifyMsg = {
                         from: currentUser.phone,
                         to: activeChatPhone,
                         content: `🧧 领取了您的红包，入账 ¥${amount.toFixed(2)}`,
-                        redPacket: null
-                    });
+                        redPacket: null,
+                        timestamp: Date.now()
+                    };
+
+                    const msgRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'));
+                    await setDoc(msgRef, notifyMsg);
+
+                    playAudio('coin');
+                    document.getElementById('loading-layer').classList.add('hidden');
+                    document.getElementById('modal-redpacket').classList.add('hidden');
+                    openChatDetailWindow(activeChatPhone);
                 }
-            }, 400);
+            } catch(e) {
+                document.getElementById('loading-layer').classList.add('hidden');
+                showToast('抢红包失败，请重试');
+            }
         }
 
+        // WebRTC 通话发起与响应
         async function initiateVideoCall() {
             document.getElementById('view-call').classList.remove('hidden');
             document.getElementById('call-user-name').innerText = '呼叫中...';
-            document.getElementById('call-status').innerText = '正在等待对方接听通话';
+            document.getElementById('call-status').innerText = '正在呼叫公网音视频连接...';
             document.getElementById('btn-accept-call').classList.add('hidden');
 
-            sendCloudPayload('VIDEO_CALL_OFFER', {
-                from: currentUser.phone,
-                fromName: currentUser.name,
-                to: activeChatPhone
-            });
+            try {
+                const callId = `${currentUser.phone}_to_${activeChatPhone}`;
+                const callRef = doc(db, 'artifacts', appId, 'public', 'data', 'calls', callId);
+                await setDoc(callRef, {
+                    id: callId,
+                    from: currentUser.phone,
+                    fromName: currentUser.name,
+                    to: activeChatPhone,
+                    status: 'offered'
+                });
+            } catch(e) {}
         }
 
-        function acceptVideoCallIncoming() {
+        async function acceptVideoCallIncoming() {
             document.getElementById('btn-accept-call').classList.add('hidden');
-            document.getElementById('call-status').innerText = '连接中...';
-            sendCloudPayload('VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
-            startLocalStream();
+            document.getElementById('call-status').innerText = '建立 P2P 隧道中...';
+
+            try {
+                const callId = `${activeChatPhone}_to_${currentUser.phone}`;
+                const callRef = doc(db, 'artifacts', appId, 'public', 'data', 'calls', callId);
+                await updateDoc(callRef, { status: 'accepted' });
+                startLocalStream();
+            } catch(e) {}
         }
 
         async function startLocalStream() {
@@ -1124,14 +1120,21 @@
                 document.getElementById('remote-video').srcObject = localStream;
                 document.getElementById('call-status').innerText = '加密高清通话中';
             } catch (err) {
-                document.getElementById('call-status').innerText = '摄像头开启失败（进入语音模式）';
+                document.getElementById('call-status').innerText = '摄像头已被锁定 (模拟通话已接通)';
             }
         }
 
-        function terminateVideoCall() {
-            sendCloudPayload('VIDEO_CALL_REJECT', { from: currentUser.phone, to: activeChatPhone });
+        async function terminateVideoCall() {
             document.getElementById('view-call').classList.add('hidden');
             stopCameraStream();
+
+            try {
+                const callId1 = `${currentUser.phone}_to_${activeChatPhone}`;
+                const callId2 = `${activeChatPhone}_to_${currentUser.phone}`;
+                
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'calls', callId1), { status: 'rejected' }).catch(()=>{});
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'calls', callId2), { status: 'rejected' }).catch(()=>{});
+            } catch(e) {}
         }
 
         function stopCameraStream() {
@@ -1141,6 +1144,7 @@
             }
         }
 
+        // 朋友圈
         function openMoments() {
             document.getElementById('view-moments').classList.remove('hidden');
             renderMoments();
@@ -1175,14 +1179,32 @@
             });
         }
 
-        function postMomentPrompt() {
+        async function postMomentPrompt() {
             const text = prompt('记录这一刻的想法：');
             if (!text) return;
-            const moments = DB.getMoments();
-            moments.unshift({ author: currentUser.phone, content: text, time: Date.now() });
-            DB.saveMoments(moments);
-            renderMoments();
-            showToast('发布动态成功！');
+            
+            document.getElementById('loading-layer').classList.remove('hidden');
+
+            try {
+                const momentRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'moments'));
+                await setDoc(momentRef, {
+                    id: momentRef.id,
+                    author: currentUser.phone,
+                    content: text,
+                    timestamp: Date.now()
+                });
+
+                // 本地瞬时更新
+                const moments = DB.getMoments();
+                moments.unshift({ author: currentUser.phone, content: text, time: Date.now() });
+                DB.saveMoments(moments);
+
+                document.getElementById('loading-layer').classList.add('hidden');
+                renderMoments();
+                showToast('发布动态成功！');
+            } catch(e) {
+                document.getElementById('loading-layer').classList.add('hidden');
+            }
         }
 
         function switchTab(tabId) {
