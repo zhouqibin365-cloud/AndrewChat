@@ -1,24 +1,23 @@
 {
-"name": "AndrewChat",
+"name": "AndrewChat 微信高真体验客户端",
 "short_name": "AndrewChat",
-"description": "基于云端数据库实时互通和WebRTC P2P通话的AndrewChat PWA应用。",
+"description": "基于 Firebase 实时云架构的移动端微信高真客户端，支持全物理网络自动登录、跨手机双向聊天与端到端加密音视频呼叫。",
 "start_url": "index.html",
-"scope": ".",
 "display": "standalone",
 "background_color": "#ededed",
 "theme_color": "#ededed",
+"scope": ".",
 "orientation": "portrait",
 "icons": [
 {
-"src": "https://upload.wikimedia.org/wikipedia/commons/7/7a/WeChat_logo_2018.svg",
+"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExNSIgZmlsbD0iIzA3QzE2MCIvPjxwYXRoIGQ9Ik0xNjYuMiAzMTMuM2MwLTQyLjMgMzkuNS03Ni42IDg4LjItNzYuNiA0OC43IDAgODguMiAzNC4zIDg8LjIgNzYuNnMtMzkuNSA3Ni42LTg4LjIgNzYuNmMtMTAuMiAwLTIwLjEtMS41LTI5LjItNC4zbC0zNy4xIDE4LjVjLTMuMSAxLjUtNi44LS44LTYuMS00LjNsNy42LTMyLjljLTE0LjgtMTMuNC0yMy40LTMyLjUtMjMuNC01My42eiIgZmlsbD0iI0ZGRiIvPjxwYXRoIGQ9Ik0yODUuNyAyMzEuNGM2LjMtMS4yIDEyLjgtMS45IDE5LjUtMS45IDYzLjMgMCAxMTQuNyA0Mi41IDExNC43IDk0LjggMCAyOS45LTE2LjYg5Ni43LTQyLjcgNzQuM2w0LjkgMzMuOGMuNiAzLjUtMy4xIDUuOC02LjMgNC4zbC0zNy41LTE4LjhjLTEwLjIgMi42LTIxLjEgNC4xLTMyLjYgNC4xLTE0LjggMC0yOC44LTIuNS00MS41LTYuOSAyOC4yLTE4LjIgNDYuNi00OC41IDQ2LjYtODMuMSAwLTM5LTIzLjUgLTczLjQtNTguNC05MWwxMy4zLTExLjV6IiBmaWxsPSIjRkZGIiBvcGFjaXR5PSIwLjk1Ii8+PC9zdmc+",
 "sizes": "192x192",
-"type": "image/svg+xml"
+"type": "image/png"
 },
 {
-"src": "https://upload.wikimedia.org/wikipedia/commons/7/7a/WeChat_logo_2018.svg",
+"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExNSIgZmlsbD0iIzA3QzE2MCIvPjxwYXRoIGQ9Ik0xNjYuMiAzMTMuM2MwLTQyLjMgMzkuNS03Ni42IDg4LjItNzYuNiA0OC43IDAgODguMiAzNC4zIDg8LjIgNzYuNnMtMzkuNSA3Ni42LTg4LjIgNzYuNmMtMTAuMiAwLTIwLjEtMS41LTI5LjItNC4zbC0zNy4xIDE4LjVjLTMuMSAxLjUtNi44LS44LTYuMS00LjNsNy42LTMyLjljLTE0LjgtMTMuNC0yMy40LTMyLjUtMjMuNC01My42eiIgZmlsbD0iI0ZGRiIvPjxwYXRoIGQ9Ik0yODUuNyAyMzEuNGM2LjMtMS4yIDEyLjgtMS45IDE5LjUtMS45IDYzLjMgMCAxMTQuNyA0Mi41IDExNC43IDk0LjggMCAyOS45LTE2LjYgNTYuNy00Mi43IDc0LjNsNC45IDMzLjhjLjYgMy41LTMuMSA1LjgtNi4zIDQuM2wtMzcuNS0xOC44Yy0xMC4yIDIuNi0yMS4xIDQuMS0zMi42IDQuMS0xNC44IDAtMjguOC0yLjUtNDEuNS02LjkgMjguMi0xOC4yIDQ2LjYtNDguNSA0Ni42LTgzLjEgMC0zOS0yMy41LTczLjQtNTguNC05MWwxMy4zLTExLjV6IiBmaWxsPSIjRkZGIiBvcGFjaXR5PSIwLjk1Ii8+PC9zdmc+",
 "sizes": "512x512",
-"type": "image/svg+xml"
+"type": "image/png"
 }
 ]
 }
-
