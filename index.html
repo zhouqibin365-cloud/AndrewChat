@@ -15,13 +15,8 @@
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 【核心引入】MQTT 跨物理设备实时云端中继（免配置，全球畅联） -->
+    <!-- 【核心引入】MQTT 跨物理设备实时云端中继 -->
     <script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.5/dist/mqtt.min.js"></script>
-
-    <!-- 【核心引入】Firebase SDK 兼容版（若配置存在则自动启用） -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
     <style>
         body {
@@ -368,22 +363,19 @@
         </div>
     </div>
 
-    <!-- 7. 全局防卡死时限防护机制 -->
+    <!-- 7. 全局加载防死锁、多点物理中继降级策略 -->
     <script>
-        // 极致容错防护阀：若云端信道在 3.5 秒内由于任何未知原因被阻断，自动解除加载锁并切换
         setTimeout(() => {
             const loader = document.getElementById('loading-layer');
             if (loader && !loader.classList.contains('hidden')) {
-                console.warn("云端信标握手超时，自动启用 MQTT 物理中继零配置集群，确保 100% 顺畅通车！");
+                console.warn("云端专属 Firebase 密钥缺失或信道超时，自动切换至公开免配极智 MQTT 跨物理中继节点！");
                 loader.classList.add('hidden');
                 
-                // 如果是首次打开，直接释放登录页
                 const savedUserPhone = localStorage.getItem('andrew_logged_in_user_phone');
                 if (savedUserPhone && typeof loadMainDashboard !== 'undefined') {
-                    // 尝试恢复
-                    const users = JSON.parse(localStorage.getItem('andrew_users') || '{}');
-                    if (users[savedUserPhone]) {
-                        window.currentUser = users[savedUserPhone];
+                    const cache = JSON.parse(localStorage.getItem('andrew_users_cache') || '{}');
+                    if (cache[savedUserPhone]) {
+                        window.currentUser = cache[savedUserPhone];
                         loadMainDashboard();
                     }
                 }
@@ -391,13 +383,14 @@
         }, 3500);
     </script>
 
-    <!-- 8. 双轨制实时云通信核心架构 (Firebase <-> MQTT 零配物理中继无缝切换) -->
+    <!-- 8. 微信双中继云端引擎及 Web Audio API 音效模块 -->
     <script type="module">
-        let useFirebase = false;
-        let db = null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'andrewchat-pwa';
+        // Firebase 兼容与标准库引入
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 统一在 window 上注册事件方便 HTML 中 onclick 调用
+        // 全局注册与声明
         window.switchAuthMode = switchAuthMode;
         window.handleAuthSubmit = handleAuthSubmit;
         window.toggleAddMenu = toggleAddMenu;
@@ -420,11 +413,17 @@
         window.closeMoments = closeMoments;
         window.postMomentPrompt = postMomentPrompt;
         window.handleLogout = handleLogout;
+        window.playAudio = playAudio;
 
-        // 1. 数据沙箱
+        let useFirebase = false;
+        let db = null;
+        let auth = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'andrewchat-pwa';
+
+        // 统一数据读写（适配全局同步的共享缓存区）
         const DB = {
-            getUsers: () => JSON.parse(localStorage.getItem('andrew_users') || '{}'),
-            saveUsers: (users) => localStorage.setItem('andrew_users', JSON.stringify(users)),
+            getUsers: () => JSON.parse(localStorage.getItem('andrew_users_cache') || '{}'),
+            saveUsers: (users) => localStorage.setItem('andrew_users_cache', JSON.stringify(users)),
             getChats: () => JSON.parse(localStorage.getItem('andrew_chats') || '[]'),
             saveChats: (chats) => localStorage.setItem('andrew_chats', JSON.stringify(chats)),
             getMoments: () => JSON.parse(localStorage.getItem('andrew_moments') || '[]'),
@@ -442,6 +441,77 @@
         let mqttClient = null;
         let currentOpeningRedPacketId = null;
 
+        // Web Audio API 高清音效合成器 (零外链，百分百可用)
+        function playAudio(type) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (type === 'message') {
+                    // 经典微信哨声 whistle "ping"
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(580, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.18);
+                } else if (type === 'coin') {
+                    // 金币/拆红包清脆双击声 "ding-ding"
+                    const now = ctx.currentTime;
+                    [1024, 1360].forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+                        gain.gain.setValueAtTime(0.15, now + idx * 0.07);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.22);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.07);
+                        osc.stop(now + idx * 0.07 + 0.25);
+                    });
+                } else if (type === 'ring') {
+                    // 视频电话持续嘟嘟声
+                    const now = ctx.currentTime;
+                    const osc1 = ctx.createOscillator();
+                    const osc2 = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc1.frequency.value = 450;
+                    osc2.frequency.value = 480;
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(ctx.destination);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.setValueAtTime(0, now + 1.2);
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 1.3);
+                    osc2.stop(now + 1.3);
+                }
+            } catch (e) {
+                console.warn("AudioContext blocked or uninitialized", e);
+            }
+        }
+
+        // 高保真好友解析防御（阻断 silent return 崩溃）
+        function getUserDetails(phone) {
+            const users = DB.getUsers();
+            if (users[phone]) {
+                return users[phone];
+            }
+            // 实时广播要求获取 profile
+            queryUserProfile(phone);
+            return {
+                phone: phone,
+                name: `微信用户_${phone.slice(-4)}`,
+                balance: 100.00,
+                friends: []
+            };
+        }
+
         // 提示框
         function showToast(text) {
             const toast = document.getElementById('toast');
@@ -454,47 +524,50 @@
             }, 3000);
         }
 
-        // 尝试链接 Firebase 
+        // 尝试链接专属 Firebase 引擎
         try {
             if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                 const firebaseConfig = JSON.parse(__firebase_config);
-                // 采用 compat 兼容性方式初始化
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore();
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
                 useFirebase = true;
-                console.log("成功初始化专属 Firebase 强信道引擎！");
+                console.log("成功初始化专属 Firebase 高可用引擎！");
             }
         } catch (e) {
-            console.warn("未能检测到 Firebase 云配置，将无缝切换到公网 MQTT 中继引擎:", e);
+            console.warn("未配置 Firebase 专属密钥，无缝降级为 MQTT 公网全局直连中继:", e);
         }
 
-        // 统一鉴权和状态分发
+        // 统一身份验证鉴权
         if (useFirebase) {
-            firebase.auth().onAuthStateChanged(async (user) => {
-                if (user) {
-                    console.log("Firebase 鉴权通过:", user.uid);
-                    const savedUserPhone = localStorage.getItem('andrew_logged_in_user_phone');
-                    if (savedUserPhone) {
-                        db.collection('artifacts').doc(appId).collection('users').doc(savedUserPhone)
-                        .onSnapshot((docSnap) => {
-                            if (docSnap.exists) {
-                                window.currentUser = docSnap.data();
-                                document.getElementById('loading-layer').classList.add('hidden');
-                                loadMainDashboard();
-                            }
-                        }, () => {
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch(e) { await signInAnonymously(auth); }
+                }
+                
+                const savedUserPhone = localStorage.getItem('andrew_logged_in_user_phone');
+                if (savedUserPhone) {
+                    onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', savedUserPhone), (snapshot) => {
+                        if (snapshot.exists()) {
+                            window.currentUser = snapshot.data();
                             document.getElementById('loading-layer').classList.add('hidden');
-                        });
-                    } else {
-                        document.getElementById('loading-layer').classList.add('hidden');
-                    }
+                            loadMainDashboard();
+                        } else {
+                            document.getElementById('loading-layer').classList.add('hidden');
+                        }
+                    });
+                } else {
+                    document.getElementById('loading-layer').classList.add('hidden');
                 }
             });
-            // 匿名登录以保证 Firestore 规则可写
-            firebase.auth().signInAnonymously().catch(() => {});
         } else {
-            // MQTT 直接启动
-            console.log("无配置极智云，启动 MQTT 独立直连中继...");
+            // MQTT 直连启动
             initMQTT();
             const savedUserPhone = localStorage.getItem('andrew_logged_in_user_phone');
             if (savedUserPhone) {
@@ -513,10 +586,9 @@
             }
         }
 
-        // 2. 初始化公网 MQTT 通信 (保留队列和消息分发)
+        // MQTT 初始化
         function initMQTT() {
             try {
-                // 连接至高可用、安全的公网 EMQX WebSocket 节点
                 mqttClient = mqtt.connect("wss://broker.emqx.io:8084/mqtt", {
                     clientId: "andrewchat_" + Math.random().toString(16).substring(2, 10),
                     clean: true,
@@ -525,9 +597,12 @@
                 });
 
                 mqttClient.on('connect', () => {
-                    console.log("MQTT 中继服务器连接建立就绪！");
+                    console.log("MQTT 全球中继建立就绪！");
+                    mqttClient.subscribe(`andrewchat/v1/users/+`);
                     if (window.currentUser) {
                         subscribeMQTTTopics(window.currentUser.phone);
+                        // 强制上传本人信息
+                        publishMQTT(`andrewchat/v1/users/${window.currentUser.phone}`, 'USER_INFO', window.currentUser, { retain: true, qos: 1 });
                     }
                 });
 
@@ -536,68 +611,40 @@
                         const payload = JSON.parse(message.toString());
                         handleCloudPayload(payload.type, payload.payload);
                     } catch (e) {
-                        console.error("MQTT中继包格式错:", e);
+                        console.error("MQTT中继包解析错误:", e);
                     }
                 });
             } catch (err) {
-                console.error("MQTT通道初始化卡顿:", err);
+                console.error("MQTT通道连接卡顿:", err);
             }
         }
 
-        // 订阅专属于我的 MQTT 消息、好友申请、通话信道
+        // 订阅当前用户相关的主题
         function subscribeMQTTTopics(phone) {
             if (!mqttClient) return;
-            mqttClient.subscribe(`andrewchat/v1/users/${phone}`);
             mqttClient.subscribe(`andrewchat/v1/requests/${phone}/+`);
             mqttClient.subscribe(`andrewchat/v1/requests/+/${phone}`);
             mqttClient.subscribe(`andrewchat/v1/messages/${phone}/#`);
             mqttClient.subscribe(`andrewchat/v1/calls/${phone}`);
         }
 
-        // 向公网发射云中继包
         function publishMQTT(topic, type, payload, options = {}) {
             if (mqttClient && mqttClient.connected) {
                 mqttClient.publish(topic, JSON.stringify({ type, payload }), options);
             }
         }
 
-        // 用 MQTT 保留消息模拟单机云查询
-        function fetchUserProfileMQTT(phone) {
-            return new Promise((resolve) => {
-                if (!mqttClient || !mqttClient.connected) {
-                    resolve(DB.getUsers()[phone] || null);
-                    return;
-                }
-                let resolved = false;
-                const topic = `andrewchat/v1/users/${phone}`;
-                const onMsg = (t, msg) => {
-                    if (t === topic) {
-                        resolved = true;
-                        mqttClient.off('message', onMsg);
-                        mqttClient.unsubscribe(topic);
-                        try {
-                            const res = JSON.parse(msg.toString());
-                            resolve(res.payload); // 返回保存的用户结构
-                        } catch(e) { resolve(null); }
-                    }
-                };
-                mqttClient.subscribe(topic);
-                mqttClient.on('message', onMsg);
-                setTimeout(() => {
-                    if (!resolved) {
-                        mqttClient.off('message', onMsg);
-                        mqttClient.unsubscribe(topic);
-                        resolve(DB.getUsers()[phone] || null); // 超时降级读取本地缓存
-                    }
-                }, 1000);
-            });
+        function queryUserProfile(phone) {
+            if (useFirebase) return;
+            // MQTT 广播索取该用户 profile
+            publishMQTT(`andrewchat/v1/requests/${phone}/query`, 'REQUEST_PROFILE', { phone: window.currentUser.phone });
         }
 
-        // 3. 处理统一云端载荷 (文字、好友验证、视频通话)
+        // 双物理端强实时云中继监听器
         function handleCloudPayload(type, payload) {
             if (!window.currentUser) return;
 
-            // 好友申请实时同步
+            // 1. A 添加 B，B 的页面亮起红点、播放音效并强制弹窗横幅通知
             if (type === 'FRIEND_REQUEST_SYNC' && payload.toPhone === window.currentUser.phone) {
                 let requests = DB.getRequests();
                 if (!requests.some(r => r.fromPhone === payload.fromPhone && r.status === 'pending')) {
@@ -608,28 +655,54 @@
                         status: 'pending'
                     });
                     DB.saveRequests(requests);
+                    
+                    // A 强制将自己的 profile 上报
+                    let users = DB.getUsers();
+                    users[payload.fromPhone] = { phone: payload.fromPhone, name: payload.fromName, balance: 100, friends: [] };
+                    DB.saveUsers(users);
+
                     playAudio('message');
+                    showToast(`收到来自 ${payload.fromName} 的好友申请！`);
                     updateBadges();
+                    
                     if (!document.getElementById('view-new-friends').classList.contains('hidden')) {
                         renderNewFriendsList();
                     }
                 }
             } 
             
-            // 对方同意好友申请，打通双向会话
+            // 2. B 同意，A 页面瞬间收到“已通过您的好友验证”强提醒，打通聊天通道
             else if (type === 'FRIEND_RESPONSE_CONFIRM' && payload.targetPhone === window.currentUser.phone) {
                 let users = DB.getUsers();
                 if (!window.currentUser.friends) window.currentUser.friends = [];
                 if (!window.currentUser.friends.includes(payload.fromPhone)) {
                     window.currentUser.friends.push(payload.fromPhone);
                     users[window.currentUser.phone] = window.currentUser;
+                    
+                    // 写入同意人的 profile
+                    users[payload.fromPhone] = { phone: payload.fromPhone, name: payload.fromName, balance: 100, friends: [] };
                     DB.saveUsers(users);
+                    
+                    playAudio('message');
+                    showToast(`${payload.fromName} 已同意并通过了您的好友验证！`);
                     renderChats();
-                    showToast(`您已与 ${payload.fromName} 正式成为好友，可以开始聊天了`);
                 }
             }
 
-            // 跨设备收取消息 (文字或红包)
+            // 3. 用户 profile 自动扩散、拉取
+            else if (type === 'USER_INFO') {
+                let users = DB.getUsers();
+                users[payload.phone] = payload;
+                DB.saveUsers(users);
+                renderChats();
+            }
+
+            // 4. 收到 profile 请求，自适应上报自己的 profile
+            else if (type === 'REQUEST_PROFILE' && payload.phone !== window.currentUser.phone) {
+                publishMQTT(`andrewchat/v1/users/${window.currentUser.phone}`, 'USER_INFO', window.currentUser, { retain: true, qos: 1 });
+            }
+
+            // 5. 跨物理设备高保真消息递送
             else if (type === 'NEW_CHAT_MESSAGE' && payload.to === window.currentUser.phone) {
                 const chats = DB.getChats();
                 chats.push(payload);
@@ -644,12 +717,16 @@
                     unreadCounts[payload.from] = (unreadCounts[payload.from] || 0) + 1;
                     DB.saveUnreadCounts(unreadCounts);
                     
+                    // 顶置高保真新消息提醒
+                    const sender = getUserDetails(payload.from);
+                    showToast(`${sender.name}: ${payload.content}`);
+
                     renderChats();   
                     updateBadges();  
                 }
             }
 
-            // WebRTC 视频呼叫信令
+            // 6. WebRTC 高清呼叫
             else if (type === 'VIDEO_CALL_OFFER' && payload.to === window.currentUser.phone) {
                 playAudio('ring');
                 document.getElementById('view-call').classList.remove('hidden');
@@ -667,24 +744,6 @@
             }
         }
 
-        function switchAuthMode(mode) {
-            authMode = mode;
-            const loginBtn = document.getElementById('toggle-login-btn');
-            const registerBtn = document.getElementById('toggle-register-btn');
-            const mainSubmitBtn = document.getElementById('auth-main-btn');
-
-            if (mode === 'login') {
-                loginBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-gray-900 shadow-sm transition-all";
-                registerBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900 transition-all";
-                mainSubmitBtn.innerText = "登录账号";
-            } else {
-                registerBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-gray-900 shadow-sm transition-all";
-                loginBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900 transition-all";
-                mainSubmitBtn.innerText = "立即注册并进入";
-            }
-        }
-
-        // 处理登录与注册
         async function handleAuthSubmit() {
             const phone = document.getElementById('login-phone').value.trim();
             const pwd = document.getElementById('login-pwd').value;
@@ -697,73 +756,60 @@
             document.getElementById('loading-layer').classList.remove('hidden');
 
             try {
-                if (useFirebase) {
-                    const userDocRef = db.collection('artifacts').doc(appId).collection('users').doc(phone);
-                    const snap = await userDocRef.get();
+                let users = DB.getUsers();
 
-                    if (authMode === 'login') {
-                        if (!snap.exists) {
+                if (authMode === 'login') {
+                    const localUser = users[phone];
+                    if (!localUser) {
+                        // Firebase/MQTT 校验
+                        if (useFirebase) {
+                            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', phone));
+                            if (!snap.exists()) {
+                                document.getElementById('loading-layer').classList.add('hidden');
+                                showToast('该账号尚未注册！');
+                                return;
+                            }
+                            if (snap.data().pwd !== pwd) {
+                                document.getElementById('loading-layer').classList.add('hidden');
+                                showToast('密码输入有误，请核对！');
+                                return;
+                            }
+                            window.currentUser = snap.data();
+                        } else {
                             document.getElementById('loading-layer').classList.add('hidden');
-                            showToast('该账号尚未注册！');
+                            showToast('该手机号尚未在该设备注册！请使用注册新账号');
                             return;
                         }
-                        if (snap.data().pwd !== pwd) {
-                            document.getElementById('loading-layer').classList.add('hidden');
-                            showToast('密码输入有误，请核对！');
-                            return;
-                        }
-                        window.currentUser = snap.data();
                     } else {
-                        if (snap.exists) {
-                            document.getElementById('loading-layer').classList.add('hidden');
-                            showToast('该手机号已被注册，请直接登录！');
-                            return;
-                        }
-                        const randomId = Math.floor(Math.random() * 9000) + 1000;
-                        window.currentUser = {
-                            phone: phone,
-                            pwd: pwd,
-                            name: `微信用户_${randomId}`,
-                            balance: 100.00,
-                            friends: []
-                        };
-                        await userDocRef.set(window.currentUser);
-                    }
-                } else {
-                    // MQTT 架构下的注册与登录
-                    const cloudUser = await fetchUserProfileMQTT(phone);
-                    let users = DB.getUsers();
-
-                    if (authMode === 'login') {
-                        const localUser = users[phone] || cloudUser;
-                        if (!localUser) {
-                            document.getElementById('loading-layer').classList.add('hidden');
-                            showToast('该手机号尚未注册！');
-                            return;
-                        }
                         if (localUser.pwd !== pwd) {
                             document.getElementById('loading-layer').classList.add('hidden');
                             showToast('密码错误！');
                             return;
                         }
                         window.currentUser = localUser;
+                    }
+                } else {
+                    // 注册
+                    if (users[phone]) {
+                        document.getElementById('loading-layer').classList.add('hidden');
+                        showToast('该手机号已被注册，请直接登录！');
+                        return;
+                    }
+                    const randomId = Math.floor(Math.random() * 9000) + 1000;
+                    window.currentUser = {
+                        phone: phone,
+                        pwd: pwd,
+                        name: `微信用户_${randomId}`,
+                        balance: 100.00,
+                        friends: []
+                    };
+                    users[phone] = window.currentUser;
+                    DB.saveUsers(users);
+
+                    if (useFirebase) {
+                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', phone), window.currentUser);
                     } else {
-                        if (users[phone] || cloudUser) {
-                            document.getElementById('loading-layer').classList.add('hidden');
-                            showToast('该手机号已被占用，请直接登录！');
-                            return;
-                        }
-                        const randomId = Math.floor(Math.random() * 9000) + 1000;
-                        window.currentUser = {
-                            phone: phone,
-                            pwd: pwd,
-                            name: `微信用户_${randomId}`,
-                            balance: 100.00,
-                            friends: []
-                        };
-                        users[phone] = window.currentUser;
-                        DB.saveUsers(users);
-                        // 在 MQTT 云通道保留一份，供其他设备发现
+                        // MQTT 全球发布自己的 retained 身份卡
                         publishMQTT(`andrewchat/v1/users/${phone}`, 'USER_INFO', window.currentUser, { retain: true, qos: 1 });
                     }
                 }
@@ -774,7 +820,7 @@
 
             } catch (err) {
                 document.getElementById('loading-layer').classList.add('hidden');
-                showToast('信道握手卡顿，请重新点击');
+                showToast('注册握手失败，请重新尝试');
                 console.error(err);
             }
         }
@@ -790,36 +836,47 @@
             document.getElementById('my-avatar').innerText = window.currentUser.name.charAt(0);
             document.getElementById('my-balance').innerText = `¥${window.currentUser.balance.toFixed(2)}`;
 
-            if (useFirebase) {
-                // 监听全局好友申请列表 (Firebase)
-                db.collection('artifacts').doc(appId).collection('requests')
-                .onSnapshot((snapshot) => {
+            // 定时向外推送自己最新的名字 profile 
+            if (!useFirebase) {
+                subscribeMQTTTopics(window.currentUser.phone);
+                publishMQTT(`andrewchat/v1/users/${window.currentUser.phone}`, 'USER_INFO', window.currentUser, { retain: true, qos: 1 });
+            } else {
+                // Firebase 统一注册和会话消息流监控
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), (snapshot) => {
                     const requests = [];
-                    snapshot.forEach(doc => requests.push(doc.data()));
+                    snapshot.forEach(doc => {
+                        const r = doc.data();
+                        requests.push(r);
+                        if (r.toPhone === window.currentUser.phone && r.status === 'pending') {
+                            const notified = JSON.parse(localStorage.getItem('andrew_notified_requests') || '[]');
+                            if (!notified.includes(r.id)) {
+                                notified.push(r.id);
+                                localStorage.setItem('andrew_notified_requests', JSON.stringify(notified));
+                                playAudio('message');
+                                showToast(`收到来自 ${r.fromName} 的好友申请！`);
+                            }
+                        }
+                    });
                     DB.saveRequests(requests);
                     updateBadges();
-                    if (!document.getElementById('view-new-friends').classList.contains('hidden')) {
-                        renderNewFriendsList();
-                    }
                 });
 
-                // 监听全局聊天消息流 (Firebase)
-                db.collection('artifacts').doc(appId).collection('messages')
-                .onSnapshot((snapshot) => {
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), (snapshot) => {
                     const chats = [];
                     snapshot.forEach(doc => chats.push(doc.data()));
                     
                     const lastLoadedLen = DB.getChats().length;
                     if (chats.length > lastLoadedLen && lastLoadedLen > 0) {
-                        const sortedNew = chats.sort((a,b) => a.timestamp - b.timestamp);
-                        const newest = sortedNew[sortedNew.length - 1];
-                        
+                        const newest = chats.sort((a,b) => a.timestamp - b.timestamp)[chats.length - 1];
                         if (newest.to === window.currentUser.phone) {
                             playAudio('message');
                             if (activeChatPhone !== newest.from) {
                                 let unreadCounts = DB.getUnreadCounts();
                                 unreadCounts[newest.from] = (unreadCounts[newest.from] || 0) + 1;
                                 DB.saveUnreadCounts(unreadCounts);
+                                
+                                const sender = getUserDetails(newest.from);
+                                showToast(`${sender.name}: ${newest.content}`);
                             }
                         }
                     }
@@ -832,38 +889,13 @@
                         openChatDetailWindow(activeChatPhone);
                     }
                 });
-
-                // 监听视频呼叫频道 (Firebase)
-                db.collection('artifacts').doc(appId).collection('calls')
-                .onSnapshot((snapshot) => {
-                    snapshot.forEach(d => {
-                        const call = d.data();
-                        if (call.to === window.currentUser.phone && call.status === 'offered') {
-                            playAudio('ring');
-                            document.getElementById('view-call').classList.remove('hidden');
-                            document.getElementById('call-user-name').innerText = call.fromName;
-                            document.getElementById('call-status').innerText = '邀请您进行视频通话...';
-                            document.getElementById('btn-accept-call').classList.remove('hidden');
-                            activeChatPhone = call.from;
-                        } else if (call.from === window.currentUser.phone && call.status === 'accepted') {
-                            document.getElementById('call-status').innerText = '通话已接通';
-                            startLocalStream();
-                        } else if ((call.from === window.currentUser.phone || call.to === window.currentUser.phone) && call.status === 'rejected') {
-                            document.getElementById('view-call').classList.add('hidden');
-                            stopCameraStream();
-                        }
-                    });
-                });
-            } else {
-                // 启动 MQTT 订阅
-                subscribeMQTTTopics(window.currentUser.phone);
             }
 
             renderChats();
             updateBadges();
         }
 
-        // 统一小红点徽章、通讯录红点及置顶消息提醒
+        // 统一标签和徽章红点挂载
         function updateBadges() {
             if (!window.currentUser) return;
 
@@ -896,12 +928,11 @@
             }
         }
 
-        // 渲染首页消息会话列表和通讯录
+        // 渲染大盘会话
         function renderChats() {
             const chatList = document.getElementById('chat-list');
             chatList.innerHTML = '';
 
-            const users = DB.getUsers();
             const friends = window.currentUser.friends || [];
             const unreadCounts = DB.getUnreadCounts();
 
@@ -912,8 +943,8 @@
             }
 
             friends.forEach(friendPhone => {
-                const friend = users[friendPhone] || { name: `好友_${friendPhone.slice(-4)}` };
-                
+                // 使用 getUserDetails 防御式兜底，绝对不中断执行
+                const friend = getUserDetails(friendPhone);
                 const allChats = DB.getChats();
                 const conversation = allChats.filter(c => 
                     (c.from === window.currentUser.phone && c.to === friendPhone) || 
@@ -943,12 +974,11 @@
                 chatList.appendChild(chatDiv);
             });
 
-            // 渲染通讯录朋友
+            // 渲染通讯录
             const contactsList = document.getElementById('contacts-list');
             contactsList.innerHTML = '';
             friends.forEach(friendPhone => {
-                const friend = users[friendPhone] || { name: `好友_${friendPhone.slice(-4)}` };
-
+                const friend = getUserDetails(friendPhone);
                 const contactDiv = document.createElement('div');
                 contactDiv.className = "flex items-center space-x-3 p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100";
                 contactDiv.onclick = () => openChatDetailWindow(friendPhone);
@@ -1007,52 +1037,53 @@
             });
         }
 
-        // B同意A的好友申请
+        // 同意验证
         async function acceptFriendRequest(senderPhone) {
             document.getElementById('loading-layer').classList.remove('hidden');
 
             try {
+                const myPhone = window.currentUser.phone;
+                
                 if (useFirebase) {
-                    const myUserRef = db.collection('artifacts').doc(appId).collection('users').doc(window.currentUser.phone);
-                    const senderUserRef = db.collection('artifacts').doc(appId).collection('users').doc(senderPhone);
+                    const myUserRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', myPhone);
+                    const senderUserRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', senderPhone);
 
-                    await myUserRef.update({ friends: firebase.firestore.FieldValue.arrayUnion(senderPhone) });
-                    await senderUserRef.update({ friends: firebase.firestore.FieldValue.arrayUnion(window.currentUser.phone) });
+                    await updateDoc(myUserRef, { friends: arrayUnion(senderPhone) });
+                    await updateDoc(senderUserRef, { friends: arrayUnion(myPhone) });
 
-                    const reqId = `${senderPhone}_to_${window.currentUser.phone}`;
-                    await db.collection('artifacts').doc(appId).collection('requests').doc(reqId).update({ status: 'accepted' });
+                    const reqId = `${senderPhone}_to_${myPhone}`;
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', reqId), { status: 'accepted' });
                 } else {
                     let users = DB.getUsers();
                     if (!window.currentUser.friends) window.currentUser.friends = [];
                     if (!window.currentUser.friends.includes(senderPhone)) {
                         window.currentUser.friends.push(senderPhone);
                     }
-                    users[window.currentUser.phone] = window.currentUser;
-                    
-                    // 双向自动添加
+                    users[myPhone] = window.currentUser;
+
+                    // A、B双向打通
                     if (!users[senderPhone]) {
-                        users[senderPhone] = { phone: senderPhone, pwd: '123', name: `好友_${senderPhone.slice(-4)}`, balance: 100.00, friends: [] };
+                        users[senderPhone] = { phone: senderPhone, pwd: '123', name: `好友_${senderPhone.slice(-4)}`, balance: 100, friends: [] };
                     }
                     if (!users[senderPhone].friends) users[senderPhone].friends = [];
-                    if (!users[senderPhone].friends.includes(window.currentUser.phone)) {
-                        users[senderPhone].friends.push(window.currentUser.phone);
+                    if (!users[senderPhone].friends.includes(myPhone)) {
+                        users[senderPhone].friends.push(myPhone);
                     }
                     DB.saveUsers(users);
 
-                    // 广播双向确认
-                    publishMQTT(`andrewchat/v1/requests/${senderPhone}/${window.currentUser.phone}`, 'FRIEND_RESPONSE_CONFIRM', {
-                        fromPhone: window.currentUser.phone,
+                    // A 端已接收同步，B 端主动发布双向确认广播
+                    publishMQTT(`andrewchat/v1/requests/${senderPhone}/${myPhone}`, 'FRIEND_RESPONSE_CONFIRM', {
+                        fromPhone: myPhone,
                         fromName: window.currentUser.name,
                         targetPhone: senderPhone
                     }, { retain: true, qos: 1 });
 
-                    // 同步云端两端用户节点
-                    publishMQTT(`andrewchat/v1/users/${window.currentUser.phone}`, 'USER_INFO', window.currentUser, { retain: true, qos: 1 });
+                    // 同步两端新好友 profile 到云中继
+                    publishMQTT(`andrewchat/v1/users/${myPhone}`, 'USER_INFO', window.currentUser, { retain: true, qos: 1 });
                     publishMQTT(`andrewchat/v1/users/${senderPhone}`, 'USER_INFO', users[senderPhone], { retain: true, qos: 1 });
 
-                    // 修改申请卡片状态
                     let requests = DB.getRequests();
-                    const reqIdx = requests.findIndex(r => r.fromPhone === senderPhone && r.toPhone === window.currentUser.phone);
+                    const reqIdx = requests.findIndex(r => r.fromPhone === senderPhone && r.toPhone === myPhone);
                     if (reqIdx !== -1) {
                         requests[reqIdx].status = 'accepted';
                         DB.saveRequests(requests);
@@ -1069,15 +1100,15 @@
 
             } catch (err) {
                 document.getElementById('loading-layer').classList.add('hidden');
-                showToast('信道连接受阻');
+                showToast('通信通道异常');
                 console.error(err);
             }
         }
 
-        // 主动加好友
+        // 发送好友申请
         async function triggerAddFriend() {
             toggleAddMenu();
-            const targetPhone = prompt('请输入你要添加的好友注册手机号：');
+            const targetPhone = prompt('请输入您要添加的好友手机号：');
             if (!targetPhone) return;
 
             if (targetPhone === window.currentUser.phone) {
@@ -1088,40 +1119,30 @@
             document.getElementById('loading-layer').classList.remove('hidden');
 
             try {
-                if (useFirebase) {
-                    const targetDocRef = db.collection('artifacts').doc(appId).collection('users').doc(targetPhone);
-                    const snap = await targetDocRef.get();
+                const myPhone = window.currentUser.phone;
+                const reqId = `${myPhone}_to_${targetPhone}`;
 
-                    if (!snap.exists) {
+                if (useFirebase) {
+                    const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', targetPhone));
+                    if (!snap.exists()) {
                         document.getElementById('loading-layer').classList.add('hidden');
-                        showToast('该号码尚未注册！');
+                        showToast('该手机号尚未注册！请确保对方已注册');
                         return;
                     }
-
-                    const reqId = `${window.currentUser.phone}_to_${targetPhone}`;
-                    await db.collection('artifacts').doc(appId).collection('requests').doc(reqId).set({
+                    
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', reqId), {
                         id: reqId,
-                        fromPhone: window.currentUser.phone,
+                        fromPhone: myPhone,
                         fromName: window.currentUser.name,
                         toPhone: targetPhone,
                         status: 'pending',
                         timestamp: Date.now()
                     });
                 } else {
-                    // MQTT 离线申请写入
-                    const targetUser = await fetchUserProfileMQTT(targetPhone);
-                    let users = DB.getUsers();
-
-                    if (!targetUser && !users[targetPhone]) {
-                        // 建立预留机制，强制注入
-                        users[targetPhone] = { phone: targetPhone, pwd: '123', name: `好友_${targetPhone.slice(-4)}`, balance: 100.00, friends: [] };
-                        DB.saveUsers(users);
-                    }
-
-                    const reqId = `${window.currentUser.phone}_to_${targetPhone}`;
-                    publishMQTT(`andrewchat/v1/requests/${targetPhone}/${window.currentUser.phone}`, 'FRIEND_REQUEST_SYNC', {
+                    // MQTT 广播申请
+                    publishMQTT(`andrewchat/v1/requests/${targetPhone}/${myPhone}`, 'FRIEND_REQUEST_SYNC', {
                         id: reqId,
-                        fromPhone: window.currentUser.phone,
+                        fromPhone: myPhone,
                         fromName: window.currentUser.name,
                         toPhone: targetPhone,
                         status: 'pending'
@@ -1129,11 +1150,11 @@
                 }
 
                 document.getElementById('loading-layer').classList.add('hidden');
-                showToast('好友申请已送出，请等候对方确认同意');
+                showToast('好友申请已成功送出！请等候对方确认同意');
 
             } catch (err) {
                 document.getElementById('loading-layer').classList.add('hidden');
-                showToast('信道握手卡顿');
+                showToast('信道受阻，请重新发起');
                 console.error(err);
             }
         }
@@ -1148,8 +1169,7 @@
             try {
                 window.currentUser.name = newName;
                 if (useFirebase) {
-                    const userRef = db.collection('artifacts').doc(appId).collection('users').doc(window.currentUser.phone);
-                    await userRef.update({ name: newName });
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', window.currentUser.phone), { name: newName });
                 } else {
                     let users = DB.getUsers();
                     users[window.currentUser.phone] = window.currentUser;
@@ -1159,17 +1179,16 @@
                 document.getElementById('my-name').innerText = newName;
                 document.getElementById('my-avatar').innerText = newName.charAt(0);
                 document.getElementById('loading-layer').classList.add('hidden');
-                showToast('昵称更新成功');
+                showToast('昵称更新成功，已同步至云端');
             } catch(e) {
                 document.getElementById('loading-layer').classList.add('hidden');
             }
         }
 
-        // 打开单聊窗口
+        // 开启会话
         function openChatDetailWindow(phone) {
             activeChatPhone = phone;
-            const users = DB.getUsers();
-            const friend = users[phone] || { name: `好友_${phone.slice(-4)}` };
+            const friend = getUserDetails(phone);
 
             let unreadCounts = DB.getUnreadCounts();
             unreadCounts[phone] = 0;
@@ -1205,7 +1224,7 @@
             updateBadges();
         }
 
-        // 发送消息
+        // 发送单聊消息
         async function sendChatMessage() {
             const input = document.getElementById('msg-input');
             const text = input.value.trim();
@@ -1223,8 +1242,7 @@
 
             try {
                 if (useFirebase) {
-                    const msgRef = db.collection('artifacts').doc(appId).collection('messages').doc();
-                    await msgRef.set(newMsg);
+                    await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'messages')), newMsg);
                 } else {
                     const chats = DB.getChats();
                     chats.push(newMsg);
@@ -1234,7 +1252,7 @@
                     renderChats();
                 }
             } catch(e) {
-                showToast('消息投递失败，请检查网络');
+                showToast('消息发送失败，请核对网络');
             }
         }
 
@@ -1243,8 +1261,7 @@
             const row = document.createElement('div');
             row.className = `flex w-full items-start space-x-3 ${isMe ? 'justify-end' : 'justify-start'}`;
 
-            const users = DB.getUsers();
-            const sender = users[senderPhone] || { name: `好友_${senderPhone.slice(-4)}` };
+            const sender = getUserDetails(senderPhone);
             const senderChar = sender ? sender.name.charAt(0) : 'U';
 
             let bubbleHtml = `<div class="bg-white px-3.5 py-2.5 text-sm max-w-[70%] relative bubble-left shadow-sm">${content}</div>`;
@@ -1283,7 +1300,7 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        // 发红包
+        // 红包逻辑
         async function sendRedPacketPrompt() {
             const amountInput = prompt('请输入塞进红包的金额：', '10.00');
             if (!amountInput) return;
@@ -1295,7 +1312,7 @@
             }
 
             if (window.currentUser.balance < amount) {
-                showToast('微信零钱不足！');
+                showToast('微信钱包零钱不足！');
                 return;
             }
 
@@ -1305,8 +1322,7 @@
                 window.currentUser.balance -= amount;
                 
                 if (useFirebase) {
-                    const myUserRef = db.collection('artifacts').doc(appId).collection('users').doc(window.currentUser.phone);
-                    await myUserRef.update({ balance: window.currentUser.balance });
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', window.currentUser.phone), { balance: window.currentUser.balance });
                 } else {
                     let users = DB.getUsers();
                     users[window.currentUser.phone] = window.currentUser;
@@ -1328,7 +1344,7 @@
                 };
 
                 if (useFirebase) {
-                    await db.collection('artifacts').doc(appId).collection('messages').doc().set(newMsg);
+                    await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'messages')), newMsg);
                 } else {
                     const chats = DB.getChats();
                     chats.push(newMsg);
@@ -1341,7 +1357,7 @@
                 document.getElementById('loading-layer').classList.add('hidden');
             } catch(e) {
                 document.getElementById('loading-layer').classList.add('hidden');
-                showToast('红包发送受阻');
+                showToast('红包发送异常');
             }
         }
 
@@ -1356,8 +1372,7 @@
             }
 
             currentOpeningRedPacketId = rpId;
-            const users = DB.getUsers();
-            const sender = users[packetMsg.from] || { name: `好友_${packetMsg.from.slice(-4)}` };
+            const sender = getUserDetails(packetMsg.from);
 
             document.getElementById('rp-sender-name').innerText = `来自 ${sender.name} 的红包`;
             document.getElementById('modal-redpacket').classList.remove('hidden');
@@ -1378,15 +1393,13 @@
                     window.currentUser.balance += amount;
 
                     if (useFirebase) {
-                        const myUserRef = db.collection('artifacts').doc(appId).collection('users').doc(window.currentUser.phone);
-                        await myUserRef.update({ balance: window.currentUser.balance });
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', window.currentUser.phone), { balance: window.currentUser.balance });
                     } else {
                         let users = DB.getUsers();
                         users[window.currentUser.phone] = window.currentUser;
                         DB.saveUsers(users);
                         publishMQTT(`andrewchat/v1/users/${window.currentUser.phone}`, 'USER_INFO', window.currentUser, { retain: true, qos: 1 });
 
-                        // 修改本地聊天记录为已领取
                         packetMsg.redPacket.isClaimed = true;
                         DB.saveChats(chats);
                     }
@@ -1402,7 +1415,7 @@
                     };
 
                     if (useFirebase) {
-                        await db.collection('artifacts').doc(appId).collection('messages').doc().set(notifyMsg);
+                        await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'messages')), notifyMsg);
                     } else {
                         const chats2 = DB.getChats();
                         chats2.push(notifyMsg);
@@ -1417,21 +1430,21 @@
                 }
             } catch(e) {
                 document.getElementById('loading-layer').classList.add('hidden');
-                showToast('抢红包失败');
+                showToast('抢红包受阻');
             }
         }
 
-        // WebRTC 通话发起
+        // 音视频通话
         async function initiateVideoCall() {
             document.getElementById('view-call').classList.remove('hidden');
             document.getElementById('call-user-name').innerText = '呼叫中...';
-            document.getElementById('call-status').innerText = '正在等待对方接听...';
+            document.getElementById('call-status').innerText = '正在呼叫公网音视频连接...';
             document.getElementById('btn-accept-call').classList.add('hidden');
 
             try {
                 if (useFirebase) {
                     const callId = `${window.currentUser.phone}_to_${activeChatPhone}`;
-                    await db.collection('artifacts').doc(appId).collection('calls').doc(callId).set({
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'calls', callId), {
                         id: callId,
                         from: window.currentUser.phone,
                         fromName: window.currentUser.name,
@@ -1450,12 +1463,12 @@
 
         async function acceptVideoCallIncoming() {
             document.getElementById('btn-accept-call').classList.add('hidden');
-            document.getElementById('call-status').innerText = '建立 P2P 直连中...';
+            document.getElementById('call-status').innerText = '建立 P2P 隧道中...';
 
             try {
                 if (useFirebase) {
                     const callId = `${activeChatPhone}_to_${window.currentUser.phone}`;
-                    await db.collection('artifacts').doc(appId).collection('calls').doc(callId).update({ status: 'accepted' });
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'calls', callId), { status: 'accepted' });
                 } else {
                     publishMQTT(`andrewchat/v1/calls/${activeChatPhone}`, 'VIDEO_CALL_ACCEPT', {
                         from: window.currentUser.phone,
@@ -1473,7 +1486,7 @@
                 document.getElementById('remote-video').srcObject = localStream;
                 document.getElementById('call-status').innerText = '加密高清通话中';
             } catch (err) {
-                document.getElementById('call-status').innerText = '通话已接通 (模拟语音环境)';
+                document.getElementById('call-status').innerText = '摄像头锁定 (模拟高清通话建立)';
             }
         }
 
@@ -1485,8 +1498,8 @@
                 if (useFirebase) {
                     const callId1 = `${window.currentUser.phone}_to_${activeChatPhone}`;
                     const callId2 = `${activeChatPhone}_to_${window.currentUser.phone}`;
-                    await db.collection('artifacts').doc(appId).collection('calls').doc(callId1).update({ status: 'rejected' }).catch(()=>{});
-                    await db.collection('artifacts').doc(appId).collection('calls').doc(callId2).update({ status: 'rejected' }).catch(()=>{});
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'calls', callId1), { status: 'rejected' }).catch(()=>{});
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'calls', callId2), { status: 'rejected' }).catch(()=>{});
                 } else {
                     publishMQTT(`andrewchat/v1/calls/${activeChatPhone}`, 'VIDEO_CALL_REJECT', {
                         from: window.currentUser.phone,
@@ -1514,7 +1527,6 @@
             const container = document.getElementById('moments-container');
             container.innerHTML = '';
             const moments = DB.getMoments();
-            const users = DB.getUsers();
 
             if (moments.length === 0) {
                 container.innerHTML = `<p class="text-center text-gray-400 mt-20 text-sm">暂无朋友圈动态</p>`;
@@ -1522,7 +1534,7 @@
             }
 
             moments.forEach(m => {
-                const sender = users[m.author] || { name: `好友_${m.author.slice(-4)}` };
+                const sender = getUserDetails(m.author);
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-[6px] p-4 shadow-sm border border-gray-100 flex space-x-3";
                 card.innerHTML = `
