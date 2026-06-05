@@ -442,7 +442,7 @@
         let localStream = null;
         let authMode = 'login'; 
         let ws = null; 
-        let callStartTime = null; // 【核心修复 3】通话开始计时点
+        let callStartTime = null; // 通话开始计时点
 
         const chatChannel = new BroadcastChannel('andrew_local_total_bridge');
 
@@ -458,6 +458,13 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
+            // 全屏点击以激活 iOS 的 Web Audio API 锁
+            document.body.addEventListener('click', () => {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().then(() => console.log("Audio Context 激活成功"));
+                }
+            }, { once: true });
+
             setTimeout(() => {
                 const loader = document.getElementById('loading-layer');
                 if (loader && !loader.classList.contains('hidden')) {
@@ -544,23 +551,27 @@
         }
 
         // ==========================================
-        // ntfy.sh 物理跨网中继总线 (高可用，保证秒级互通)
+        // 【终极重构】专属收件箱中继总线 (多设备极速秒达)
         // ==========================================
         function initWebSocketNetwork() {
             if (!currentUser) return;
             try {
-                // 基于全球中继云 ntfy.sh 打通两台物理设备在任何网络下的跨省秒级握手
-                const relayTopic = "andrewchat_pwa_relay_v1";
-                const wsUrl = `wss://ntfy.sh/${relayTopic}/ws`;
+                // 每位用户监听自己的专属订阅频道 (andrewchat_u_手机号)，彻底摆脱共享大频道的拥挤和100条/日限制
+                const myTopic = `andrewchat_u_${currentUser.phone}`;
+                const wsUrl = `wss://ntfy.sh/${myTopic}/ws?since=12h`; // 自动拉取过去12小时离线漏收的好友请求及聊天消息！
+                
+                if (ws) {
+                    try { ws.close(); } catch(e) {}
+                }
+                
                 ws = new WebSocket(wsUrl);
 
                 ws.onopen = () => {
-                    console.log("云端 WSS 直连就绪");
+                    console.log("专属云收件箱就绪:", myTopic);
                     document.getElementById('network-badge').innerHTML = `
                         <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1 animate-pulse"></span>
                         云联机已就绪
                     `;
-                    sendCloudPayload('USER_ONLINE', { phone: currentUser.phone, name: currentUser.name });
                 };
 
                 ws.onmessage = (event) => {
@@ -570,25 +581,43 @@
                             const parsed = JSON.parse(rawData.message);
                             handleMessageBridge(parsed.type, parsed.payload);
                         }
-                    } catch(e) {}
+                    } catch(e) {
+                        console.error("解析云消息体失败:", e);
+                    }
                 };
 
                 ws.onclose = () => {
+                    console.log("云连接意外断开，3秒后自动重连...");
                     setTimeout(initWebSocketNetwork, 3000); 
                 };
             } catch (err) {
-                console.warn("网络异常，降级到同机窗口总线模式");
+                console.warn("网络异常，已降级运行", err);
             }
         }
 
-        function sendCloudPayload(type, payload) {
+        function sendCloudPayload(targetPhone, type, payload) {
+            if (!targetPhone) return;
+            
+            // 1. 同步本设备本地其它窗口/标签页
             chatChannel.postMessage({ type, payload });
             
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type, payload }));
-                
-                // 利用 ntfy POST 端点做云消息冗余投递
-                fetch(`https://ntfy.sh/andrewchat_pwa_relay_v1`, {
+            // 2. HTTP 精准投递至对方独立专属收件箱 (不受任何人干扰)
+            const targetTopic = `andrewchat_u_${targetPhone}`;
+            fetch(`https://ntfy.sh/${targetTopic}`, {
+                method: 'POST',
+                body: JSON.stringify({ type, payload })
+            })
+            .then(() => {
+                console.log(`[精准投递成功] -> ${targetPhone}, 类型: ${type}`);
+            })
+            .catch(err => {
+                console.error(`[精准投递失败] -> ${targetPhone}, 错误:`, err);
+            });
+
+            // 3. 同时同步投递给自己（用以支持多端(如手机/电脑)同时登录时完美对齐数据）
+            if (currentUser && targetPhone !== currentUser.phone) {
+                const myTopic = `andrewchat_u_${currentUser.phone}`;
+                fetch(`https://ntfy.sh/${myTopic}`, {
                     method: 'POST',
                     body: JSON.stringify({ type, payload })
                 }).catch(()=>{});
@@ -626,7 +655,6 @@
                     DB.saveUsers(users);
                 }
                 
-                // 【核心修复 1】好友的名字、手机号完美对齐保存
                 users[payload.fromPhone] = { 
                     phone: payload.fromPhone, 
                     pwd: '123', 
@@ -641,25 +669,39 @@
                 updateBadges();
                 showToast(`新朋友 ${payload.fromName} 已通过验证，开始聊天吧`);
             }
-            // 3. 跨网络收发对话消息
+            // 3. 跨网络收发对话消息 (加入严格的消息去重，防止 since=12h 触发重播产生重复气泡)
             else if (type === 'NEW_CHAT_MESSAGE' && payload.to === currentUser.phone) {
                 const chats = DB.getChats();
-                chats.push(payload);
-                DB.saveChats(chats);
-                
-                if (activeChatPhone === payload.from) {
-                    playAudio('message');
-                    appendMessageBubble(payload.from, payload.content, false, payload.redPacket, payload.isCallRecord);
-                } else {
-                    playAudio('message');
-                    let unreadCounts = DB.getUnreadCounts();
-                    unreadCounts[payload.from] = (unreadCounts[payload.from] || 0) + 1;
-                    DB.saveUnreadCounts(unreadCounts);
-                    renderChats();   
-                    updateBadges();  
+                if (!chats.some(c => c.id === payload.id)) {
+                    chats.push(payload);
+                    DB.saveChats(chats);
+                    
+                    if (activeChatPhone === payload.from) {
+                        playAudio('message');
+                        appendMessageBubble(payload.from, payload.content, false, payload.redPacket, payload.isCallRecord);
+                    } else {
+                        playAudio('message');
+                        let unreadCounts = DB.getUnreadCounts();
+                        unreadCounts[payload.from] = (unreadCounts[payload.from] || 0) + 1;
+                        DB.saveUnreadCounts(unreadCounts);
+                        renderChats();   
+                        updateBadges();  
+                    }
                 }
             }
-            // 4. WebRTC 高阶视频通话信标
+            // 4. 同步好友昵称修改
+            else if (type === 'NICKNAME_UPDATED' && (currentUser.friends || []).includes(payload.phone)) {
+                let users = DB.getUsers();
+                if (users[payload.phone]) {
+                    users[payload.phone].name = payload.name;
+                    DB.saveUsers(users);
+                    renderChats();
+                    if (activeChatPhone === payload.phone) {
+                        document.getElementById('chat-title').innerText = payload.name;
+                    }
+                }
+            }
+            // 5. WebRTC 视频通话信标
             else if (type === 'VIDEO_CALL_OFFER' && payload.to === currentUser.phone) {
                 playAudio('ring');
                 document.getElementById('view-call').classList.remove('hidden');
@@ -667,17 +709,16 @@
                 document.getElementById('call-status').innerText = '邀请您进行视频通话...';
                 document.getElementById('btn-accept-call').classList.remove('hidden');
                 activeChatPhone = payload.from;
-                callStartTime = null; // 此时尚未接听，计入挂断逻辑
+                callStartTime = null; 
             } else if (type === 'VIDEO_CALL_ACCEPT' && payload.to === currentUser.phone) {
                 document.getElementById('call-status').innerText = '通话已接通';
-                callStartTime = Date.now(); // 【核心修复 3】接通瞬间开始计时
+                callStartTime = Date.now(); 
                 startLocalStream();
             } else if (type === 'VIDEO_CALL_REJECT' && payload.to === currentUser.phone) {
                 document.getElementById('view-call').classList.add('hidden');
                 stopCameraStream();
                 showToast('通话已被挂断');
                 
-                // 【核心修复 3】对方挂断，如果通话已经接通，计入时长日志，否则记为已取消
                 const duration = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
                 logVideoCallRecord(duration, false);
             }
@@ -691,7 +732,6 @@
             document.getElementById('view-main').classList.add('flex');
 
             document.getElementById('my-name').innerText = currentUser.name;
-            // 【核心修复 1】我 tab 下完美绑定显示自己的手机号为微信号
             document.getElementById('my-phone').innerText = `微信号: ${currentUser.phone}`;
             document.getElementById('my-avatar').innerText = currentUser.name.charAt(0);
             document.getElementById('my-balance').innerText = `¥${currentUser.balance.toFixed(2)}`;
@@ -855,7 +895,6 @@
                 DB.saveUsers(users);
             }
 
-            // 【核心修复 1】增量同步好友的昵称和微信号
             const reqData = requests.find(r => r.fromPhone === senderPhone && r.toPhone === currentUser.phone);
             const senderName = reqData ? reqData.fromName : `微信用户_${senderPhone.slice(-4)}`;
 
@@ -868,7 +907,6 @@
             };
             DB.saveUsers(users);
 
-            // 自动确立对方好友数据（双向）
             if (!users[senderPhone].friends) users[senderPhone].friends = [];
             if (!users[senderPhone].friends.includes(currentUser.phone)) {
                 users[senderPhone].friends.push(currentUser.phone);
@@ -881,7 +919,8 @@
                 DB.saveRequests(requests);
             }
 
-            sendCloudPayload('FRIEND_RESPONSE_CONFIRM', {
+            // 发送同意信标给对方
+            sendCloudPayload(senderPhone, 'FRIEND_RESPONSE_CONFIRM', {
                 fromPhone: currentUser.phone,
                 fromName: currentUser.name,
                 targetPhone: senderPhone
@@ -919,7 +958,7 @@
 
             let attempts = 0;
             const broadcastTimer = setInterval(() => {
-                sendCloudPayload('FRIEND_REQUEST_SYNC', {
+                sendCloudPayload(targetPhone, 'FRIEND_REQUEST_SYNC', {
                     fromPhone: currentUser.phone,
                     fromName: currentUser.name,
                     targetPhone: targetPhone
@@ -944,7 +983,10 @@
             document.getElementById('my-name').innerText = newName;
             document.getElementById('my-avatar').innerText = newName.charAt(0);
             
-            sendCloudPayload('NICKNAME_UPDATED', { phone: currentUser.phone, name: newName });
+            // 完美通知当前所有好友我的名字修改，即时对齐
+            (currentUser.friends || []).forEach(fPhone => {
+                sendCloudPayload(fPhone, 'NICKNAME_UPDATED', { phone: currentUser.phone, name: newName });
+            });
             renderChats();
         }
 
@@ -995,11 +1037,12 @@
             if (!text) return;
 
             const newMsg = {
+                id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                 from: currentUser.phone,
                 to: activeChatPhone,
                 content: text,
                 redPacket: null,
-                isCallRecord: false // 普通文字消息
+                isCallRecord: false
             };
 
             const chats = DB.getChats();
@@ -1009,7 +1052,7 @@
             appendMessageBubble(currentUser.phone, text, true, null, false);
             input.value = '';
 
-            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg);
+            sendCloudPayload(activeChatPhone, 'NEW_CHAT_MESSAGE', newMsg);
             renderChats();
         }
 
@@ -1024,7 +1067,6 @@
 
             let bubbleHtml = `<div class="bg-white px-3.5 py-2.5 text-sm max-w-[70%] relative bubble-left shadow-sm">${content}</div>`;
             
-            // 【核心修复 3】优化视频通话已结束气泡布局，使其具备微信系统绿色/白底原生卡片质感
             if (isCallRecord) {
                 if (isMe) {
                     bubbleHtml = `<div class="bg-[#95ec69] px-3.5 py-2.5 text-sm max-w-[70%] relative bubble-right shadow-sm flex items-center space-x-2 font-medium"><span>${content}</span><span class="text-base">📹</span></div>`;
@@ -1094,6 +1136,7 @@
             const rpObject = { id: rpId, amount: amount, sender: currentUser.phone, isClaimed: false };
 
             const newMsg = {
+                id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                 from: currentUser.phone,
                 to: activeChatPhone,
                 content: `🧧 发送了微信红包 ¥${amount.toFixed(2)}`,
@@ -1106,7 +1149,7 @@
             DB.saveChats(chats);
 
             appendMessageBubble(currentUser.phone, '', true, rpObject, false);
-            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg);
+            sendCloudPayload(activeChatPhone, 'NEW_CHAT_MESSAGE', newMsg);
             renderChats();
         }
 
@@ -1153,7 +1196,8 @@
                     document.getElementById('modal-redpacket').classList.add('hidden');
                     openChatDetailWindow(activeChatPhone);
                     
-                    sendCloudPayload('NEW_CHAT_MESSAGE', {
+                    sendCloudPayload(activeChatPhone, 'NEW_CHAT_MESSAGE', {
+                        id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                         from: currentUser.phone,
                         to: activeChatPhone,
                         content: `🧧 领取了您的红包，入账 ¥${amount.toFixed(2)}`,
@@ -1164,9 +1208,6 @@
             }, 400);
         }
 
-        // ==========================================
-        // 【核心修复 3】视频通话结束历史自动计入聊天记录
-        // ==========================================
         function logVideoCallRecord(duration, isInitiator) {
             let logContent = "";
             if (duration > 0) {
@@ -1178,37 +1219,35 @@
             }
 
             const newMsg = {
+                id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                 from: currentUser.phone,
                 to: activeChatPhone,
                 content: logContent,
                 redPacket: null,
-                isCallRecord: true // 标注为视频通话历史标志
+                isCallRecord: true 
             };
 
             const chats = DB.getChats();
             chats.push(newMsg);
             DB.saveChats(chats);
 
-            // 渲染历史到消息框
             if (activeChatPhone) {
                 appendMessageBubble(currentUser.phone, logContent, true, null, true);
             }
 
-            // 云同步视频挂断记录
-            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg);
+            sendCloudPayload(activeChatPhone, 'NEW_CHAT_MESSAGE', newMsg);
             renderChats();
         }
 
-        // WebRTC 跨物理机视频通话发起与接听
         async function initiateVideoCall() {
             document.getElementById('view-call').classList.remove('hidden');
             document.getElementById('call-user-name').innerText = '呼叫中...';
             document.getElementById('call-status').innerText = '正在等待对方接听通话';
             document.getElementById('btn-accept-call').classList.add('hidden');
             
-            callStartTime = null; // 初始化
+            callStartTime = null; 
 
-            sendCloudPayload('VIDEO_CALL_OFFER', {
+            sendCloudPayload(activeChatPhone, 'VIDEO_CALL_OFFER', {
                 from: currentUser.phone,
                 fromName: currentUser.name,
                 to: activeChatPhone
@@ -1219,9 +1258,9 @@
             document.getElementById('btn-accept-call').classList.add('hidden');
             document.getElementById('call-status').innerText = '连接中...';
             
-            callStartTime = Date.now(); // 接听方开始计时
+            callStartTime = Date.now(); 
             
-            sendCloudPayload('VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
+            sendCloudPayload(activeChatPhone, 'VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
             startLocalStream();
         }
 
@@ -1237,11 +1276,10 @@
         }
 
         function terminateVideoCall() {
-            sendCloudPayload('VIDEO_CALL_REJECT', { from: currentUser.phone, to: activeChatPhone });
+            sendCloudPayload(activeChatPhone, 'VIDEO_CALL_REJECT', { from: currentUser.phone, to: activeChatPhone });
             document.getElementById('view-call').classList.add('hidden');
             stopCameraStream();
 
-            // 【核心修复 3】我挂断，写入视频通话记录
             const duration = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
             logVideoCallRecord(duration, true);
         }
