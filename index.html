@@ -444,6 +444,17 @@
         let ws = null; 
         let callStartTime = null; // 通话开始计时点
 
+        // --- WebRTC P2P 高级通信模块配置 ---
+        let peerConnection = null;
+        let iceCandidatesQueue = [];
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        };
+
         const chatChannel = new BroadcastChannel('andrew_local_total_bridge');
 
         function showToast(text) {
@@ -701,7 +712,7 @@
                     }
                 }
             }
-            // 5. WebRTC 视频通话信标
+            // 5. WebRTC 视频通话信标接收处理
             else if (type === 'VIDEO_CALL_OFFER' && payload.to === currentUser.phone) {
                 playAudio('ring');
                 document.getElementById('view-call').classList.remove('hidden');
@@ -711,9 +722,17 @@
                 activeChatPhone = payload.from;
                 callStartTime = null; 
             } else if (type === 'VIDEO_CALL_ACCEPT' && payload.to === currentUser.phone) {
-                document.getElementById('call-status').innerText = '通话已接通';
-                callStartTime = Date.now(); 
-                startLocalStream();
+                document.getElementById('call-status').innerText = '正在协商媒体通道...';
+                createPeerConnection();
+                peerConnection.createOffer()
+                    .then(offer => peerConnection.setLocalDescription(offer))
+                    .then(() => {
+                        sendCloudPayload(activeChatPhone, 'RTC_OFFER', {
+                            offer: peerConnection.localDescription,
+                            from: currentUser.phone
+                        });
+                    })
+                    .catch(err => console.error("WebRTC Offer 握手异常:", err));
             } else if (type === 'VIDEO_CALL_REJECT' && payload.to === currentUser.phone) {
                 document.getElementById('view-call').classList.add('hidden');
                 stopCameraStream();
@@ -721,6 +740,14 @@
                 
                 const duration = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
                 logVideoCallRecord(duration, false);
+            }
+            // 6. 响应底层 WebRTC P2P 物理协商事件
+            else if (type === 'RTC_OFFER' && payload.to === currentUser.phone) {
+                handleRtcOffer(payload);
+            } else if (type === 'RTC_ANSWER' && payload.to === currentUser.phone) {
+                handleRtcAnswer(payload);
+            } else if (type === 'RTC_ICE' && payload.to === currentUser.phone) {
+                handleRtcIce(payload);
             }
         }
 
@@ -1242,10 +1269,13 @@
         async function initiateVideoCall() {
             document.getElementById('view-call').classList.remove('hidden');
             document.getElementById('call-user-name').innerText = '呼叫中...';
-            document.getElementById('call-status').innerText = '正在等待对方接听通话';
+            document.getElementById('call-status').innerText = '正在启动本地摄像头...';
             document.getElementById('btn-accept-call').classList.add('hidden');
             
             callStartTime = null; 
+
+            await startLocalStream();
+            document.getElementById('call-status').innerText = '正在等待对方接听...';
 
             sendCloudPayload(activeChatPhone, 'VIDEO_CALL_OFFER', {
                 from: currentUser.phone,
@@ -1254,24 +1284,114 @@
             });
         }
 
-        function acceptVideoCallIncoming() {
+        async function acceptVideoCallIncoming() {
             document.getElementById('btn-accept-call').classList.add('hidden');
-            document.getElementById('call-status').innerText = '连接中...';
+            document.getElementById('call-status').innerText = '正在启动本地摄像头...';
             
-            callStartTime = Date.now(); 
-            
+            await startLocalStream();
+            document.getElementById('call-status').innerText = '正在建立 P2P 加密通道...';
+
             sendCloudPayload(activeChatPhone, 'VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
-            startLocalStream();
+        }
+
+        function createPeerConnection() {
+            if (peerConnection) {
+                peerConnection.close();
+            }
+            peerConnection = new RTCPeerConnection(rtcConfig);
+            iceCandidatesQueue = [];
+
+            // 交换 ICE Candidates
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate && activeChatPhone) {
+                    sendCloudPayload(activeChatPhone, 'RTC_ICE', {
+                        candidate: event.candidate,
+                        from: currentUser.phone
+                    });
+                }
+            };
+
+            // 成功追踪对端视频流时直接挂载
+            peerConnection.ontrack = (event) => {
+                console.log("WebRTC: 成功接收并激活对端流", event.streams[0]);
+                const remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo) {
+                    remoteVideo.srcObject = event.streams[0];
+                }
+                document.getElementById('call-status').innerText = '加密高清通话中';
+            };
+
+            // 附带本地音视频流
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            }
+        }
+
+        async function handleRtcOffer(payload) {
+            console.log("WebRTC: 接收到 P2P Offer 信标");
+            createPeerConnection();
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.offer));
+                await drainIceCandidates();
+                
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                sendCloudPayload(activeChatPhone, 'RTC_ANSWER', {
+                    answer: answer,
+                    from: currentUser.phone
+                });
+            } catch (e) {
+                console.error("WebRTC: 协商 Offer 失败", e);
+            }
+        }
+
+        async function handleRtcAnswer(payload) {
+            console.log("WebRTC: 接收到 P2P Answer 信标");
+            if (peerConnection) {
+                try {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer));
+                    await drainIceCandidates();
+                    callStartTime = Date.now(); // 设定接通时间点
+                } catch (e) {
+                    console.error("WebRTC: 协商 Answer 失败", e);
+                }
+            }
+        }
+
+        async function handleRtcIce(payload) {
+            if (peerConnection && peerConnection.remoteDescription) {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                } catch (e) {
+                    console.error("WebRTC: 注入 ICE Candidate 异常", e);
+                }
+            } else {
+                iceCandidatesQueue.push(payload.candidate);
+            }
+        }
+
+        async function drainIceCandidates() {
+            if (!peerConnection) return;
+            while (iceCandidatesQueue.length > 0) {
+                const candidate = iceCandidatesQueue.shift();
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {
+                    console.error("WebRTC: 注入就绪 ICE Candidate 异常", e);
+                }
+            }
         }
 
         async function startLocalStream() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById('local-video').srcObject = localStream;
-                document.getElementById('remote-video').srcObject = localStream;
-                document.getElementById('call-status').innerText = '加密高清通话中';
             } catch (err) {
                 document.getElementById('call-status').innerText = '摄像头开启失败（进入语音模式）';
+                console.error("设备采集异常:", err);
             }
         }
 
@@ -1289,6 +1409,12 @@
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
             }
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            document.getElementById('local-video').srcObject = null;
+            document.getElementById('remote-video').srcObject = null;
         }
 
         // 朋友圈
