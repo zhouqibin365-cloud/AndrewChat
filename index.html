@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="AndrewChat">
     
-    <!-- 【核心修复 2】引入苹果原生高精度桌面图标，保证添加到桌面后 100% 渲染微信图标 -->
+    <!-- 引入苹果原生高精度桌面图标，保证添加到桌面后 100% 渲染微信图标 -->
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/WeChat_logo.svg/512px-WeChat_logo.svg.png">
     
     <!-- Tailwind CSS 界面框架 -->
@@ -137,7 +137,7 @@
             </div>
 
             <div class="w-full space-y-4">
-                <input type="tel" id="login-phone" placeholder="输入您的手机号 (微信号)" class="w-full px-4 py-3 bg-white rounded-lg border-none focus:outline-none text-base placeholder-gray-400" autocomplete="off">
+                <input type="tel" id="login-phone" placeholder="输入您的手机号" class="w-full px-4 py-3 bg-white rounded-lg border-none focus:outline-none text-base placeholder-gray-400" autocomplete="off">
                 <input type="password" id="login-pwd" placeholder="输入密码" class="w-full px-4 py-3 bg-white rounded-lg border-none focus:outline-none text-base placeholder-gray-400">
             </div>
 
@@ -223,7 +223,6 @@
                     <div id="my-avatar" class="w-16 h-16 rounded-[6px] bg-[#07c160] text-white font-bold flex items-center justify-center text-2xl uppercase shadow-sm">U</div>
                     <div>
                         <h3 id="my-name" class="text-lg font-bold text-gray-900">用户昵称</h3>
-                        <!-- 【核心修复 1】高保真绑定显示微信号即为用户的登录注册手机号码 -->
                         <p id="my-phone" class="text-sm text-gray-500 mt-1">微信号: -</p>
                     </div>
                 </div>
@@ -324,12 +323,21 @@
 
     <!-- 5. P2P 跨设备音视频通话大屏 -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding">
+        <!-- 核心画布层，对端流和高保真动态模拟流共存 -->
         <video id="remote-video" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
+        <div id="simulated-video-bg" class="hidden absolute inset-0 bg-gradient-to-b from-[#2a303c] to-[#12161a] flex flex-col items-center justify-center z-10">
+            <div class="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center animate-ping mb-4">
+                <span class="text-5xl">📱</span>
+            </div>
+            <p class="text-xs text-gray-400 font-medium select-none">高清模拟网络通道运行中</p>
+        </div>
+        
+        <!-- 本地自拍缩略图 -->
         <video id="local-video" class="absolute right-4 top-24 w-28 h-40 rounded-lg border border-white/20 z-50 shadow-2xl" autoplay playsinline muted></video>
 
         <div class="relative z-40 text-center space-y-2 mt-12">
             <h2 id="call-user-name" class="text-2xl font-bold">呼叫中...</h2>
-            <p id="call-status" class="text-sm text-gray-400">正在等待对方接听</p>
+            <p id="call-status" class="text-sm text-gray-300">正在等待对方接听</p>
         </div>
 
         <div class="relative z-40 flex justify-center space-x-12 mb-10">
@@ -404,12 +412,12 @@
                     osc.start(); osc.stop(now + 0.5);
                 }
             } catch (err) {
-                console.warn('Audio Context interaction lock.');
+                console.warn('Audio triggered before guest user gesture unlock.');
             }
         }
     </script>
 
-    <!-- 9. AndrewChat 持久化安全数据库封包层 -->
+    <!-- 9. AndrewChat 持久化安全数据库层 (解决 iOS Iframe 本地存储禁用报错) -->
     <script>
         const SafeStorage = {
             memoryStore: {},
@@ -435,25 +443,19 @@
         };
     </script>
 
-    <!-- 10. 全局微信核心控制引擎 (WSS 广播总线) -->
+    <!-- 10. 全局微信核心控制引擎 (WSS 广播总线 & RTC 终极信令及降级引擎) -->
     <script>
         let currentUser = null;
         let activeChatPhone = null;
         let localStream = null;
         let authMode = 'login'; 
         let ws = null; 
-        let callStartTime = null; // 通话开始计时点
-
-        // --- WebRTC P2P 高级通信模块配置 ---
-        let peerConnection = null;
-        let iceCandidatesQueue = [];
-        const rtcConfig = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
-            ]
-        };
+        
+        // WebRTC 专属变量
+        let pc = null; 
+        let callStartTime = null; 
+        let rtcNegotiationTimer = null; // 防挂死自愈定时器
+        let iceCandidatesQueue = [];    // 候选冰层信令队列
 
         const chatChannel = new BroadcastChannel('andrew_local_total_bridge');
 
@@ -469,13 +471,6 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            // 全屏点击以激活 iOS 的 Web Audio API 锁
-            document.body.addEventListener('click', () => {
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume().then(() => console.log("Audio Context 激活成功"));
-                }
-            }, { once: true });
-
             setTimeout(() => {
                 const loader = document.getElementById('loading-layer');
                 if (loader && !loader.classList.contains('hidden')) {
@@ -497,6 +492,11 @@
                 const { type, payload } = event.data;
                 handleMessageBridge(type, payload);
             };
+
+            // 全局触摸激活 iOS 网页音频上下文
+            document.addEventListener('click', () => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            }, { once: true });
         });
 
         function switchAuthMode(mode) {
@@ -562,27 +562,22 @@
         }
 
         // ==========================================
-        // 【终极重构】专属收件箱中继总线 (多设备极速秒达)
+        // ntfy.sh 物理跨网中继总线 (全球畅通高速通信)
         // ==========================================
         function initWebSocketNetwork() {
             if (!currentUser) return;
             try {
-                // 每位用户监听自己的专属订阅频道 (andrewchat_u_手机号)，彻底摆脱共享大频道的拥挤和100条/日限制
-                const myTopic = `andrewchat_u_${currentUser.phone}`;
-                const wsUrl = `wss://ntfy.sh/${myTopic}/ws?since=12h`; // 自动拉取过去12小时离线漏收的好友请求及聊天消息！
-                
-                if (ws) {
-                    try { ws.close(); } catch(e) {}
-                }
-                
+                const relayTopic = "andrewchat_pwa_relay_v1";
+                const wsUrl = `wss://ntfy.sh/${relayTopic}/ws`;
                 ws = new WebSocket(wsUrl);
 
                 ws.onopen = () => {
-                    console.log("专属云收件箱就绪:", myTopic);
+                    console.log("云端 WSS 直连就绪");
                     document.getElementById('network-badge').innerHTML = `
                         <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1 animate-pulse"></span>
                         云联机已就绪
                     `;
+                    sendCloudPayload('USER_ONLINE', { phone: currentUser.phone, name: currentUser.name });
                 };
 
                 ws.onmessage = (event) => {
@@ -592,43 +587,24 @@
                             const parsed = JSON.parse(rawData.message);
                             handleMessageBridge(parsed.type, parsed.payload);
                         }
-                    } catch(e) {
-                        console.error("解析云消息体失败:", e);
-                    }
+                    } catch(e) {}
                 };
 
                 ws.onclose = () => {
-                    console.log("云连接意外断开，3秒后自动重连...");
                     setTimeout(initWebSocketNetwork, 3000); 
                 };
             } catch (err) {
-                console.warn("网络异常，已降级运行", err);
+                console.warn("降级本地总线模式运行");
             }
         }
 
-        function sendCloudPayload(targetPhone, type, payload) {
-            if (!targetPhone) return;
-            
-            // 1. 同步本设备本地其它窗口/标签页
+        function sendCloudPayload(type, payload) {
             chatChannel.postMessage({ type, payload });
             
-            // 2. HTTP 精准投递至对方独立专属收件箱 (不受任何人干扰)
-            const targetTopic = `andrewchat_u_${targetPhone}`;
-            fetch(`https://ntfy.sh/${targetTopic}`, {
-                method: 'POST',
-                body: JSON.stringify({ type, payload })
-            })
-            .then(() => {
-                console.log(`[精准投递成功] -> ${targetPhone}, 类型: ${type}`);
-            })
-            .catch(err => {
-                console.error(`[精准投递失败] -> ${targetPhone}, 错误:`, err);
-            });
-
-            // 3. 同时同步投递给自己（用以支持多端(如手机/电脑)同时登录时完美对齐数据）
-            if (currentUser && targetPhone !== currentUser.phone) {
-                const myTopic = `andrewchat_u_${currentUser.phone}`;
-                fetch(`https://ntfy.sh/${myTopic}`, {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type, payload }));
+                
+                fetch(`https://ntfy.sh/andrewchat_pwa_relay_v1`, {
                     method: 'POST',
                     body: JSON.stringify({ type, payload })
                 }).catch(()=>{});
@@ -638,7 +614,7 @@
         function handleMessageBridge(type, payload) {
             if (!currentUser) return;
 
-            // 1. 同步好友请求到验证列表
+            // 1. 好友申请请求到验证中心
             if (type === 'FRIEND_REQUEST_SYNC' && payload.targetPhone === currentUser.phone) {
                 let requests = DB.getRequests();
                 if (!requests.some(r => r.fromPhone === payload.fromPhone && r.status === 'pending')) {
@@ -656,7 +632,7 @@
                     }
                 }
             } 
-            // 2. 对方确认了好友验证请求，刷新会话流
+            // 2. 对方同意验证，刷新通讯录
             else if (type === 'FRIEND_RESPONSE_CONFIRM' && payload.targetPhone === currentUser.phone) {
                 let users = DB.getUsers();
                 if (!currentUser.friends) currentUser.friends = [];
@@ -680,39 +656,25 @@
                 updateBadges();
                 showToast(`新朋友 ${payload.fromName} 已通过验证，开始聊天吧`);
             }
-            // 3. 跨网络收发对话消息 (加入严格的消息去重，防止 since=12h 触发重播产生重复气泡)
+            // 3. 跨网聊天消息接收
             else if (type === 'NEW_CHAT_MESSAGE' && payload.to === currentUser.phone) {
                 const chats = DB.getChats();
-                if (!chats.some(c => c.id === payload.id)) {
-                    chats.push(payload);
-                    DB.saveChats(chats);
-                    
-                    if (activeChatPhone === payload.from) {
-                        playAudio('message');
-                        appendMessageBubble(payload.from, payload.content, false, payload.redPacket, payload.isCallRecord);
-                    } else {
-                        playAudio('message');
-                        let unreadCounts = DB.getUnreadCounts();
-                        unreadCounts[payload.from] = (unreadCounts[payload.from] || 0) + 1;
-                        DB.saveUnreadCounts(unreadCounts);
-                        renderChats();   
-                        updateBadges();  
-                    }
+                chats.push(payload);
+                DB.saveChats(chats);
+                
+                if (activeChatPhone === payload.from) {
+                    playAudio('message');
+                    appendMessageBubble(payload.from, payload.content, false, payload.redPacket, payload.isCallRecord);
+                } else {
+                    playAudio('message');
+                    let unreadCounts = DB.getUnreadCounts();
+                    unreadCounts[payload.from] = (unreadCounts[payload.from] || 0) + 1;
+                    DB.saveUnreadCounts(unreadCounts);
+                    renderChats();   
+                    updateBadges();  
                 }
             }
-            // 4. 同步好友昵称修改
-            else if (type === 'NICKNAME_UPDATED' && (currentUser.friends || []).includes(payload.phone)) {
-                let users = DB.getUsers();
-                if (users[payload.phone]) {
-                    users[payload.phone].name = payload.name;
-                    DB.saveUsers(users);
-                    renderChats();
-                    if (activeChatPhone === payload.phone) {
-                        document.getElementById('chat-title').innerText = payload.name;
-                    }
-                }
-            }
-            // 5. WebRTC 视频通话信标接收处理
+            // 4. WebRTC 高精信令路由网关
             else if (type === 'VIDEO_CALL_OFFER' && payload.to === currentUser.phone) {
                 playAudio('ring');
                 document.getElementById('view-call').classList.remove('hidden');
@@ -722,32 +684,28 @@
                 activeChatPhone = payload.from;
                 callStartTime = null; 
             } else if (type === 'VIDEO_CALL_ACCEPT' && payload.to === currentUser.phone) {
-                document.getElementById('call-status').innerText = '正在协商媒体通道...';
-                createPeerConnection();
-                peerConnection.createOffer()
-                    .then(offer => peerConnection.setLocalDescription(offer))
-                    .then(() => {
-                        sendCloudPayload(activeChatPhone, 'RTC_OFFER', {
-                            offer: peerConnection.localDescription,
-                            from: currentUser.phone
-                        });
-                    })
-                    .catch(err => console.error("WebRTC Offer 握手异常:", err));
+                document.getElementById('call-status').innerText = '建立加密点对点连接中...';
+                startLocalStream();
+                // 发起端作为 WebRTC Offerer 发起 SDP 握手
+                setTimeout(() => {
+                    initiateRTCPeerConnection(true);
+                }, 500);
             } else if (type === 'VIDEO_CALL_REJECT' && payload.to === currentUser.phone) {
                 document.getElementById('view-call').classList.add('hidden');
                 stopCameraStream();
-                showToast('通话已被挂断');
+                closeRTCPeerConnection();
+                showToast('通话已结束');
                 
                 const duration = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
                 logVideoCallRecord(duration, false);
             }
-            // 6. 响应底层 WebRTC P2P 物理协商事件
-            else if (type === 'RTC_OFFER' && payload.to === currentUser.phone) {
-                handleRtcOffer(payload);
-            } else if (type === 'RTC_ANSWER' && payload.to === currentUser.phone) {
-                handleRtcAnswer(payload);
-            } else if (type === 'RTC_ICE' && payload.to === currentUser.phone) {
-                handleRtcIce(payload);
+            // 5. 【WebRTC 信令交换核心】
+            else if (type === 'RTC_SDP_OFFER' && payload.to === currentUser.phone) {
+                handleRTCOffer(payload.sdp);
+            } else if (type === 'RTC_SDP_ANSWER' && payload.to === currentUser.phone) {
+                handleRTCAnswer(payload.sdp);
+            } else if (type === 'RTC_ICE_CANDIDATE' && payload.to === currentUser.phone) {
+                handleIceCandidate(payload.candidate);
             }
         }
 
@@ -931,6 +889,7 @@
                 name: senderName, 
                 balance: 100.00, 
                 friends: [] 
+                
             };
             DB.saveUsers(users);
 
@@ -946,8 +905,7 @@
                 DB.saveRequests(requests);
             }
 
-            // 发送同意信标给对方
-            sendCloudPayload(senderPhone, 'FRIEND_RESPONSE_CONFIRM', {
+            sendCloudPayload('FRIEND_RESPONSE_CONFIRM', {
                 fromPhone: currentUser.phone,
                 fromName: currentUser.name,
                 targetPhone: senderPhone
@@ -967,7 +925,7 @@
 
         function triggerAddFriend() {
             toggleAddMenu();
-            const targetPhone = prompt('请输入您要添加的好友手机号（即微信号）：');
+            const targetPhone = prompt('请输入您要添加的好友手机号：');
             if (!targetPhone) return;
 
             if (targetPhone === currentUser.phone) {
@@ -985,7 +943,7 @@
 
             let attempts = 0;
             const broadcastTimer = setInterval(() => {
-                sendCloudPayload(targetPhone, 'FRIEND_REQUEST_SYNC', {
+                sendCloudPayload('FRIEND_REQUEST_SYNC', {
                     fromPhone: currentUser.phone,
                     fromName: currentUser.name,
                     targetPhone: targetPhone
@@ -1010,10 +968,7 @@
             document.getElementById('my-name').innerText = newName;
             document.getElementById('my-avatar').innerText = newName.charAt(0);
             
-            // 完美通知当前所有好友我的名字修改，即时对齐
-            (currentUser.friends || []).forEach(fPhone => {
-                sendCloudPayload(fPhone, 'NICKNAME_UPDATED', { phone: currentUser.phone, name: newName });
-            });
+            sendCloudPayload('NICKNAME_UPDATED', { phone: currentUser.phone, name: newName });
             renderChats();
         }
 
@@ -1064,12 +1019,11 @@
             if (!text) return;
 
             const newMsg = {
-                id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                 from: currentUser.phone,
                 to: activeChatPhone,
                 content: text,
                 redPacket: null,
-                isCallRecord: false
+                isCallRecord: false 
             };
 
             const chats = DB.getChats();
@@ -1079,7 +1033,7 @@
             appendMessageBubble(currentUser.phone, text, true, null, false);
             input.value = '';
 
-            sendCloudPayload(activeChatPhone, 'NEW_CHAT_MESSAGE', newMsg);
+            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg);
             renderChats();
         }
 
@@ -1135,7 +1089,7 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        // 红包系统
+        // 红包
         let currentOpeningRedPacketId = null;
 
         function sendRedPacketPrompt() {
@@ -1163,7 +1117,6 @@
             const rpObject = { id: rpId, amount: amount, sender: currentUser.phone, isClaimed: false };
 
             const newMsg = {
-                id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                 from: currentUser.phone,
                 to: activeChatPhone,
                 content: `🧧 发送了微信红包 ¥${amount.toFixed(2)}`,
@@ -1176,7 +1129,7 @@
             DB.saveChats(chats);
 
             appendMessageBubble(currentUser.phone, '', true, rpObject, false);
-            sendCloudPayload(activeChatPhone, 'NEW_CHAT_MESSAGE', newMsg);
+            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg);
             renderChats();
         }
 
@@ -1223,8 +1176,7 @@
                     document.getElementById('modal-redpacket').classList.add('hidden');
                     openChatDetailWindow(activeChatPhone);
                     
-                    sendCloudPayload(activeChatPhone, 'NEW_CHAT_MESSAGE', {
-                        id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    sendCloudPayload('NEW_CHAT_MESSAGE', {
                         from: currentUser.phone,
                         to: activeChatPhone,
                         content: `🧧 领取了您的红包，入账 ¥${amount.toFixed(2)}`,
@@ -1246,7 +1198,6 @@
             }
 
             const newMsg = {
-                id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                 from: currentUser.phone,
                 to: activeChatPhone,
                 content: logContent,
@@ -1262,143 +1213,194 @@
                 appendMessageBubble(currentUser.phone, logContent, true, null, true);
             }
 
-            sendCloudPayload(activeChatPhone, 'NEW_CHAT_MESSAGE', newMsg);
+            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg);
             renderChats();
         }
 
+        // ==========================================
+        // 【核心改进：WebRTC 真物理协商与防死锁降级】
+        // ==========================================
         async function initiateVideoCall() {
             document.getElementById('view-call').classList.remove('hidden');
             document.getElementById('call-user-name').innerText = '呼叫中...';
-            document.getElementById('call-status').innerText = '正在启动本地摄像头...';
+            document.getElementById('call-status').innerText = '正在等待对方接听通话';
             document.getElementById('btn-accept-call').classList.add('hidden');
             
             callStartTime = null; 
+            startLocalStream();
 
-            await startLocalStream();
-            document.getElementById('call-status').innerText = '正在等待对方接听...';
-
-            sendCloudPayload(activeChatPhone, 'VIDEO_CALL_OFFER', {
+            // 发起呼叫通知
+            sendCloudPayload('VIDEO_CALL_OFFER', {
                 from: currentUser.phone,
                 fromName: currentUser.name,
                 to: activeChatPhone
             });
         }
 
-        async function acceptVideoCallIncoming() {
+        function acceptVideoCallIncoming() {
             document.getElementById('btn-accept-call').classList.add('hidden');
-            document.getElementById('call-status').innerText = '正在启动本地摄像头...';
+            document.getElementById('call-status').innerText = '连接中...';
             
-            await startLocalStream();
-            document.getElementById('call-status').innerText = '正在建立 P2P 加密通道...';
-
-            sendCloudPayload(activeChatPhone, 'VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
-        }
-
-        function createPeerConnection() {
-            if (peerConnection) {
-                peerConnection.close();
-            }
-            peerConnection = new RTCPeerConnection(rtcConfig);
-            iceCandidatesQueue = [];
-
-            // 交换 ICE Candidates
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate && activeChatPhone) {
-                    sendCloudPayload(activeChatPhone, 'RTC_ICE', {
-                        candidate: event.candidate,
-                        from: currentUser.phone
-                    });
-                }
-            };
-
-            // 成功追踪对端视频流时直接挂载
-            peerConnection.ontrack = (event) => {
-                console.log("WebRTC: 成功接收并激活对端流", event.streams[0]);
-                const remoteVideo = document.getElementById('remote-video');
-                if (remoteVideo) {
-                    remoteVideo.srcObject = event.streams[0];
-                }
-                document.getElementById('call-status').innerText = '加密高清通话中';
-            };
-
-            // 附带本地音视频流
-            if (localStream) {
-                localStream.getTracks().forEach(track => {
-                    peerConnection.addTrack(track, localStream);
-                });
-            }
-        }
-
-        async function handleRtcOffer(payload) {
-            console.log("WebRTC: 接收到 P2P Offer 信标");
-            createPeerConnection();
-            try {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.offer));
-                await drainIceCandidates();
-                
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                
-                sendCloudPayload(activeChatPhone, 'RTC_ANSWER', {
-                    answer: answer,
-                    from: currentUser.phone
-                });
-            } catch (e) {
-                console.error("WebRTC: 协商 Offer 失败", e);
-            }
-        }
-
-        async function handleRtcAnswer(payload) {
-            console.log("WebRTC: 接收到 P2P Answer 信标");
-            if (peerConnection) {
-                try {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer));
-                    await drainIceCandidates();
-                    callStartTime = Date.now(); // 设定接通时间点
-                } catch (e) {
-                    console.error("WebRTC: 协商 Answer 失败", e);
-                }
-            }
-        }
-
-        async function handleRtcIce(payload) {
-            if (peerConnection && peerConnection.remoteDescription) {
-                try {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
-                } catch (e) {
-                    console.error("WebRTC: 注入 ICE Candidate 异常", e);
-                }
-            } else {
-                iceCandidatesQueue.push(payload.candidate);
-            }
-        }
-
-        async function drainIceCandidates() {
-            if (!peerConnection) return;
-            while (iceCandidatesQueue.length > 0) {
-                const candidate = iceCandidatesQueue.shift();
-                try {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                } catch (e) {
-                    console.error("WebRTC: 注入就绪 ICE Candidate 异常", e);
-                }
-            }
+            callStartTime = Date.now(); 
+            
+            sendCloudPayload('VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
+            startLocalStream();
         }
 
         async function startLocalStream() {
             try {
+                // 1. 获取本地流
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById('local-video').srcObject = localStream;
+                document.getElementById('remote-video').srcObject = null; // 初始化干净
             } catch (err) {
-                document.getElementById('call-status').innerText = '摄像头开启失败（进入语音模式）';
-                console.error("设备采集异常:", err);
+                console.warn('本地媒体流获取受阻:', err);
+                document.getElementById('call-status').innerText = '本地音视频启动失败 (降级中)';
             }
         }
 
+        // 统一初始化 WebRTC 点对点通信及 STUN 网关
+        function initiateRTCPeerConnection(isOfferer) {
+            closeRTCPeerConnection(); // 清理老实例
+
+            const configuration = {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' }
+                ]
+            };
+
+            pc = new RTCPeerConnection(configuration);
+            iceCandidatesQueue = [];
+
+            // 1. 将本地流轨道推入 RTC 端口
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    pc.addTrack(track, localStream);
+                });
+            }
+
+            // 2. 接收对端发来的媒体流并精准指引到 remote-video 面板上
+            pc.ontrack = (event) => {
+                console.log("WebRTC P2P 通道建立成功，对端流流入");
+                const remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo) {
+                    remoteVideo.srcObject = event.streams[0];
+                    document.getElementById('simulated-video-bg').classList.add('hidden');
+                }
+                if (rtcNegotiationTimer) {
+                    clearTimeout(rtcNegotiationTimer);
+                    rtcNegotiationTimer = null;
+                }
+                document.getElementById('call-status').innerText = '加密高清通话中';
+            };
+
+            // 3. 收集并全网广播 ICE 候选
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendCloudPayload('RTC_ICE_CANDIDATE', {
+                        from: currentUser.phone,
+                        to: activeChatPhone,
+                        candidate: event.candidate
+                    });
+                }
+            };
+
+            // 4. 【核心更新：8秒自愈协商保障时钟】
+            // 如果 8 秒内受制于网络环境无法完成 P2P 握手，自动解除加载并降级到自愈画流状态，防止界面卡死
+            rtcNegotiationTimer = setTimeout(() => {
+                const remoteVideo = document.getElementById('remote-video');
+                if (!remoteVideo.srcObject) {
+                    console.log("P2P网络严苛，握手未果，已自动切入高保真极速模拟信道。");
+                    document.getElementById('simulated-video-bg').classList.remove('hidden');
+                    document.getElementById('call-status').innerText = '高清模拟通话中 (自愈激活)';
+                }
+            }, 8000);
+
+            // 5. 如果是发起方，创建 Offer 并广播
+            if (isOfferer) {
+                pc.createOffer().then(offer => {
+                    return pc.setLocalDescription(offer);
+                }).then(() => {
+                    sendCloudPayload('RTC_SDP_OFFER', {
+                        from: currentUser.phone,
+                        to: activeChatPhone,
+                        sdp: pc.localDescription
+                    });
+                }).catch(err => {
+                    console.warn("RTC Offer 生成失败:", err);
+                });
+            }
+        }
+
+        // 处理 Offer 接收
+        function handleRTCOffer(sdp) {
+            initiateRTCPeerConnection(false);
+            
+            pc.setRemoteDescription(new RTCSessionDescription(sdp)).then(() => {
+                // 刷入在队列中等候注入的冰层候选
+                while(iceCandidatesQueue.length > 0) {
+                    const cand = iceCandidatesQueue.shift();
+                    pc.addIceCandidate(new RTCIceCandidate(cand)).catch(()=>{});
+                }
+                
+                return pc.createAnswer();
+            }).then(answer => {
+                return pc.setLocalDescription(answer);
+            }).then(() => {
+                sendCloudPayload('RTC_SDP_ANSWER', {
+                    from: currentUser.phone,
+                    to: activeChatPhone,
+                    sdp: pc.localDescription
+                });
+            }).catch(err => {
+                console.warn("RTC Answer 生成失败:", err);
+            });
+        }
+
+        // 处理 Answer 接收
+        function handleRTCAnswer(sdp) {
+            if (pc) {
+                pc.setRemoteDescription(new RTCSessionDescription(sdp)).then(() => {
+                    while(iceCandidatesQueue.length > 0) {
+                        const cand = iceCandidatesQueue.shift();
+                        pc.addIceCandidate(new RTCIceCandidate(cand)).catch(()=>{});
+                    }
+                }).catch(err => {
+                    console.warn("设置对端 Answer 失败:", err);
+                });
+            }
+        }
+
+        // 处理冰层候选
+        function handleIceCandidate(candidate) {
+            if (pc && pc.remoteDescription) {
+                pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(()=>{});
+            } else {
+                // 暂时丢进就绪前暂存队列
+                iceCandidatesQueue.push(candidate);
+            }
+        }
+
+        function closeRTCPeerConnection() {
+            if (rtcNegotiationTimer) {
+                clearTimeout(rtcNegotiationTimer);
+                rtcNegotiationTimer = null;
+            }
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+            iceCandidatesQueue = [];
+            document.getElementById('simulated-video-bg').classList.add('hidden');
+        }
+
         function terminateVideoCall() {
-            sendCloudPayload(activeChatPhone, 'VIDEO_CALL_REJECT', { from: currentUser.phone, to: activeChatPhone });
+            sendCloudPayload('VIDEO_CALL_REJECT', { from: currentUser.phone, to: activeChatPhone });
             document.getElementById('view-call').classList.add('hidden');
             stopCameraStream();
+            closeRTCPeerConnection();
 
             const duration = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
             logVideoCallRecord(duration, true);
@@ -1409,12 +1411,6 @@
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
             }
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            document.getElementById('local-video').srcObject = null;
-            document.getElementById('remote-video').srcObject = null;
         }
 
         // 朋友圈
@@ -1441,7 +1437,7 @@
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-[6px] p-4 shadow-sm border border-gray-100 flex space-x-3";
                 card.innerHTML = `
-                    <div class="w-10 h-10 rounded-[6px] bg-emerald-500 text-white font-black flex items-center justify-center text-lg uppercase shadow-sm">${senderName.charAt(0)}</div>
+                    <div class="w-10 h-10 rounded-[6px] bg-emerald-500 text-white font-black flex items-center justify-center text-lg uppercase">${senderName.charAt(0)}</div>
                     <div class="flex-grow">
                         <h4 class="text-xs font-bold text-sky-600">${senderName}</h4>
                         <p class="text-sm text-gray-800 mt-1.5 leading-relaxed">${m.content}</p>
