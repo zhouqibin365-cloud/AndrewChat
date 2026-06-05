@@ -1,23 +1,23 @@
 {
-  "name": "AndrewChat 微信高真体验客户端",
-  "short_name": "AndrewChat",
-  "description": "基于 Firebase Firestore 实时云技术的移动端高品质微信客户端，支持跨省跨网加好友验证与未读消息红点统计。",
-  "start_url": "index.html",
-  "display": "standalone",
-  "background_color": "#ededed",
-  "theme_color": "#ededed",
-  "scope": ".",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExNSIgZmlsbD0iIzA3QzE2MCIvPjxwYXRoIGQ9Ik0xNjYuMiAzMTMuM2MwLTQyLjMgMzkuNS03Ni42IDg4LjItNzYuNiA0OC43IDAgODguMiAzNC4zIDg8LjIgNzYuNnMtMzkuNSA3Ni42LTg4LjIgNzYuNmMtMTAuMiAwLTIwLjEtMS41LTI5LjItNC4zbC0zNy4xIDE4LjVjLTMuMSAxLjUtNi44LS44LTYuMS00LjNsNy42LTMyLjljLTE0LjgtMTMuNC0yMy40LTMyLjUtMjMuNC01My42eiIgZmlsbD0iI0ZGRiIvPjxwYXRoIGQ9Ik0yODUuNyAyMzEuNGM2LjMtMS4yIDEyLjgtMS45IDE5LjUtMS45IDYzLjMgMCAxMTQuNyA0Mi41IDExNC43IDk0LjggMCAyOS45LTE2LjYgNTYuNy00Mi43IDc0LjNsNC45IDMzLjhjLjYgMy41LTMuMSA1LjgtNi4zIDQuM2wtMzcuNS0xOC44Yy0xMC4yIDIuNi0yMS4xIDQuMS0zMi42IDQuMS0xNC44IDAtMjguOC0yLjUtNDEuNS02LjkgMjguMi0xOC4yIDQ2LjYtNDguNSA0Ni42LTgzLjEgMC0zOS0yMy41LTczLjQtNTguNC05MWwxMy4zLTExLjV6IiBmaWxsPSIjRkZGIiBvcGFjaXR5PSIwLjk1Ii8+PC9zdmc+",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExNSIgZmlsbD0iIzA3QzE2MCIvPjxwYXRoIGQ9Ik0xNjYuMiAzMTMuM2MwLTQyLjMgMzkuNS03Ni42IDg4LjItNzYuNiA0OC43IDAgODguMiAzNC4zIDg8LjIgNzYuNnMtMzkuNSA3Ni42LTg4LjIgNzYuNmMtMTAuMiAwLTIwLjEtMS41LTI5LjItNC4zbC0zNy4xIDE4LjVjLTMuMSAxLjUtNi44LS44LTYuMS00LjNsNy42LTMyLjljLTE0LjgtMTMuNC0yMy40LTMyLjUtMjMuNC01My42eiIgZmlsbD0iI0ZGRiIvPjxwYXRoIGQ9Ik0yODUuNyAyMzEuNGM2LjMtMS4yIDEyLjgtMS45IDE5LjUtMS45IDYzLjMgMCAxMTQuNyA0Mi41IDExNC43IDk0LjggMCAyOS45LTE2LjYgNTYuNy00Mi43IDc0LjNsNC45IDMzLjhjLjYgMy41LTMuMSA1LjgtNi4zIDQuM2wtMzcuNS0xOC44Yy0xMC4yIDIuNi0yMS4xIDQuMS0zMi42IDQuMS0xNC44IDAtMjguOC0yLjUtNDEuNS02LjkgMjguMi0xOC4yIDQ2LjYtNDguNSA0Ni42LTgzLjEgMC0zOS0yMy41LTczLjQtNTguNC05MWwxMy4zLTExLjV6IiBmaWxsPSIjRkZGIiBvcGFjaXR5PSIw.OTUxIi8+PC9zdmc+",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
+"name": "AndrewChat 微信高真体验客户端",
+"short_name": "AndrewChat",
+"description": "基于 Firebase Firestore 实时云技术的移动端高品质微信客户端，支持跨省跨网加好友验证与未读消息红点统计。",
+"start_url": "index.html",
+"display": "standalone",
+"background_color": "#ededed",
+"theme_color": "#ededed",
+"scope": ".",
+"orientation": "portrait",
+"icons": [
+{
+"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iUTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExNSIgZmlsbD0iIzA3QzE2MCIvPjxwYXRoIGQ9Ik0xNjYuMiAzMTMuM2MwLTQyLjMgMzkuNS03Ni42IDg4LjItNzYuNiA0OC43IDAgODguMiAzNC4zIDg8LjIgNzYuNnMtMzkuNSA3Ni42LTg4LjIgIGNtLTEwLjIgMC0yMC4xLTEuNS0yOS4yLTQuM2wtMzcuMSAxOC41Yy0zLjEgMS41LTYuOC0uOC02LjEtNC4zbDcuNi0zMi45Yy0xNC44LTEzLjYtMjMuNC0zMi41LTIzLjQtNTMuNnoiIGZpbGw9IiNGRkYiLz48cGF0aCBkPSJNMjg1LjcgMjMxLjRjNi4zLTEuMiAxMi44LTEuOSAxOS41LTEuOSA2My4zIDAgMTE0LjcgNDIuNSAxMTQuNyA5NC44IDAgMjkuOS0xNi42IDU2LjctNDIuNyA3NC4zbDQuOSAzMy44Yy42IDMuNS0zLjEgNS44LTYuMyA0LjNsLTM3LjUtMTguOGMtMTAuMiAyLjYtMjEuMSA0LjEtMzIuNiA0LjEtMTQuOCAwLTI4LjgtMi41LTQxLjUtNi45IDI4LjItMTguMiA0Ni42LTQ4LjUgNDYuNi04My4xIDAtMzktMjMuNS03My40LTU4LjQtOTFsMTMuMy0xMS41eiIgZmlsbD0iI0ZGRiIgb3BhY2l0eT0iMC45NSIvPjwvc3ZnPg==",
+"sizes": "192x192",
+"type": "image/png"
+},
+{
+"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iUTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExNSIgZmlsbD0iIzA3QzE2MCIvPjxwYXRoIGQ9Ik0xNjYuMiAzMTMuM2MwLTQyLjMgMzkuNS03Ni42IDg4LjItNzYuNiA0OC43IDAgODguMiAzNC4zIDg8LjIgNzYuNnMtMzkuNSA3Ni42LTg4LjIgIGNtLTEwLjIgMC0yMC4xLTEuNS0yOS4yLTQuM2wtMzcuMSAxOC41Yy0zLjEgMS41LTYuOC0uOC02LjEtNC4zbDcuNi0zMi45Yy0xNC44LTEzLjYtMjMuNC0zMi41LTIzLjQtNTMuNnoiIGZpbGw9IiNGRkYiLz48cGF0aCBkPSJNMjg1LjcgMjMxLjRjNi4zLTEuMiAxMi44LTEuOSAxOS41LTEuOSA2My4zIDAgMTE0LjcgNDIuNSAxMTQuNyA5NC44IDAgMjkuOS0xNi42IDU2LjctNDIuNyA3NC4zbDQuOSAzMy44Yy42IDMuNS0zLjEgNS44LTYuMyA0LjNsLTM3LjUtMTguOGMtMTAuMiAyLjYtMjEuMSA0LjEtMzIuNiA0LjEtMTQuOCAwLTI4LjgtMi41LTQxLjUtNi45IDI4LjItMTguMiA0Ni42LTQ4LjUgNDYuNi04My4xIDAtMzktMjMuNS03My40LTU4LjQtOTFsMTMuMy0xMS41eiIgZmlsbD0iI0ZGRiIgb3BhY2l0eT0iMC45NSIvPjwvc3ZnPg==",
+"sizes": "512x512",
+"type": "image/png"
+}
+]
 }
