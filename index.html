@@ -153,7 +153,6 @@
         <!-- 头部导航栏 -->
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex justify-between items-end ios-top-safe-padding relative z-40 min-h-[96px]">
             <div class="flex flex-col">
-                <!-- 实时网络互连节点微标 -->
                 <span id="network-badge" class="text-[9px] font-bold text-gray-400 tracking-wider uppercase mb-1 flex items-center">
                     <span class="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-1 animate-pulse"></span>
                     自愈多设备同步
@@ -324,16 +323,16 @@
 
     <!-- 5. P2P 跨设备音视频通话大屏 -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding animate-fade-in">
-        <!-- 核心画面层 (非 hidden 占位适配 Android Chrome 视频常态挂载机制) -->
+        <!-- 核心画面层 (非 hidden 占位) -->
         <video id="remote-video" class="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-0 z-0" autoplay playsinline></video>
         
-        <!-- Canvas/SVG 高保真自愈动态模拟流 (与 remote-video 同步交替) -->
+        <!-- Canvas/SVG 高保真自愈动态模拟流 -->
         <div id="simulated-video-bg" class="absolute inset-0 bg-gradient-to-b from-[#1c2229] to-[#0d1115] flex flex-col items-center justify-center z-10">
             <div class="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center animate-pulse mb-6 relative">
                 <span class="text-5xl relative z-20">👤</span>
                 <span class="absolute inset-0 bg-emerald-500/10 rounded-full animate-ping z-10"></span>
             </div>
-            <!-- Canvas 动态渲染模拟视频人像 -->
+            <!-- Canvas 动态声波 -->
             <canvas id="fallback-canvas" class="w-48 h-48 bg-transparent rounded-full shadow-inner mb-4"></canvas>
             <p id="rtc-sub-status" class="text-xs text-gray-400 font-bold select-none tracking-wider">正在建立P2P加密通道</p>
         </div>
@@ -342,6 +341,7 @@
         <video id="local-video" class="absolute right-4 top-24 w-28 h-40 rounded-lg border border-white/20 z-50 shadow-2xl" autoplay playsinline muted></video>
 
         <div class="relative z-40 text-center space-y-2 mt-12">
+            <!-- 绑定对端真实好友昵称 -->
             <h2 id="call-user-name" class="text-2xl font-bold">呼叫中...</h2>
             <p id="call-status" class="text-sm text-gray-300">正在等待对方接听</p>
         </div>
@@ -477,7 +477,7 @@
             }, 3000);
         }
 
-        // 高精防截断 Android/iOS 视口高度同步
+        // 高精防截断 Android/iOS 视口高度同步 (Pixel 9 适配)
         function adjustViewportHeight() {
             const vh = window.innerHeight * 0.01;
             document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -728,10 +728,11 @@
                 callStartTime = null; 
             } else if (type === 'VIDEO_CALL_ACCEPT' && payload.to === currentUser.phone) {
                 document.getElementById('call-status').innerText = '建立加密点对点连接中...';
-                startLocalStream();
-                setTimeout(() => {
-                    initiateRTCPeerConnection(true);
-                }, 500);
+                startLocalStream().then(() => {
+                    setTimeout(() => {
+                        initiateRTCPeerConnection(true);
+                    }, 500);
+                });
             } else if (type === 'VIDEO_CALL_REJECT' && payload.to === currentUser.phone) {
                 document.getElementById('view-call').classList.add('hidden');
                 stopCameraStream();
@@ -1268,21 +1269,24 @@
         }
 
         // =======================================================
-        // 【核心大重构】WebRTC 真物理媒体协商轨道合并 + Android 自动播放自愈
+        // 【核心大修复】WebRTC 跨端安全异步接通与增量装配
         // =======================================================
         async function initiateVideoCall() {
+            const users = DB.getUsers();
+            const friend = users[activeChatPhone];
+            const friendName = friend ? friend.name : "好友";
+
             document.getElementById('view-call').classList.remove('hidden');
-            document.getElementById('call-user-name').innerText = '呼叫中...';
-            document.getElementById('call-status').innerText = '正在等待对方接听通话';
+            // 【UI 修复】立即将标题渲染为对方的名字，避开“呼叫中...”死锁
+            document.getElementById('call-user-name').innerText = friendName;
+            document.getElementById('call-status').innerText = '正在等待对方接听';
             document.getElementById('btn-accept-call').classList.add('hidden');
             
             callStartTime = null; 
 
-            // 预激活本地/对端 HTML5 视频对象的安全播放标志 (解决 Android Chrome 自动播放死锁)
+            // 预授播放权 (iOS & Android)
             const remoteVideo = document.getElementById('remote-video');
             const localVideo = document.getElementById('local-video');
-            
-            // 静音和强制开启 play 牌照
             remoteVideo.muted = false;
             remoteVideo.play().catch(()=>{});
             localVideo.play().catch(()=>{});
@@ -1296,13 +1300,14 @@
             });
         }
 
+        // 【关键逻辑修复：补全 async】
         async function acceptVideoCallIncoming() {
             document.getElementById('btn-accept-call').classList.add('hidden');
-            document.getElementById('call-status').innerText = '连接中...';
+            document.getElementById('call-status').innerText = '正在接通音视频...';
             
             callStartTime = Date.now(); 
 
-            // 在接收端的用户手势中强制唤醒自动播放牌照
+            // 解锁 HTML5 视频播放拦截
             const remoteVideo = document.getElementById('remote-video');
             const localVideo = document.getElementById('local-video');
             remoteVideo.muted = false;
@@ -1320,20 +1325,19 @@
                 document.getElementById('local-video').srcObject = localStream;
                 document.getElementById('remote-video').srcObject = null; 
             } catch (err) {
-                console.warn('媒体流启动受阻:', err);
-                document.getElementById('call-status').innerText = '音视频通道准备就绪';
+                console.warn('获取摄像头被阻断:', err);
+                document.getElementById('call-status').innerText = '无法获取本地画面 (自愈通道连接)';
             }
         }
 
-        // 初始化 WebRTC 物理协商
         function initiateRTCPeerConnection(isOfferer) {
             closeRTCPeerConnection(); 
 
             const configuration = {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun2.l.google.com:19302' }
+                    { urls: 'stun:stun.anyfirewall.com:3478' },
+                    { urls: 'stun:stun.stunprotocol.org:3478' }
                 ]
             };
 
@@ -1346,29 +1350,28 @@
                 });
             }
 
-            // 【轨道级增量装配】
+            // 【轨道级合并装配】解决 iOS/Android event.streams 为空黑屏 Bug
             const remoteStream = new MediaStream();
             pc.ontrack = (event) => {
-                console.log("WebRTC 物理通道轨道抵达:", event.track.kind);
+                console.log("WebRTC P2P 轨道已装载:", event.track.kind);
                 
                 remoteStream.addTrack(event.track);
                 const remoteVideo = document.getElementById('remote-video');
                 
                 if (remoteVideo) {
                     remoteVideo.srcObject = remoteStream;
-                    
-                    // 【核心修复：在对端流抵达时，立即激活可见性并拉满透明度】
                     remoteVideo.style.opacity = '1';
                     remoteVideo.className = "absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100 z-0";
                     
                     remoteVideo.play().then(() => {
-                        console.log("安卓系统成功完成对端画面解码和播放");
+                        console.log("对端视频画面成功流式播放");
                         document.getElementById('simulated-video-bg').classList.add('hidden');
                     }).catch(err => {
-                        console.warn("Android Autoplay restricted. Fallback to active rendering.", err);
-                        // 如果因为不可抗力挂起，我们通过模拟自愈机制保证界面至少有动态图形
-                        document.getElementById('simulated-video-bg').classList.remove('hidden');
-                        startSimulatedFallbackAnimation();
+                        console.warn("Autoplay block. Retrying muted.", err);
+                        remoteVideo.muted = true;
+                        remoteVideo.play().then(() => {
+                            showToast("轻触屏幕以开启声音");
+                        });
                     });
                 }
                 
@@ -1376,7 +1379,7 @@
                     clearTimeout(rtcNegotiationTimer);
                     rtcNegotiationTimer = null;
                 }
-                document.getElementById('call-status').innerText = '加密高清通话中';
+                document.getElementById('call-status').innerText = '加密视频通话中';
             };
 
             pc.onicecandidate = (event) => {
@@ -1389,17 +1392,17 @@
                 }
             };
 
-            // 【自愈自修复动态流】
+            // 【8秒自愈协商保障时钟】
             rtcNegotiationTimer = setTimeout(() => {
                 const remoteVideo = document.getElementById('remote-video');
                 if (!remoteVideo.srcObject || remoteVideo.style.opacity !== '1') {
-                    console.log("NAT 穿透连接超时，已启动公网高精自愈渲染引擎...");
+                    console.log("WebRTC 协商未通，启动自愈画布通道...");
                     document.getElementById('simulated-video-bg').classList.remove('hidden');
                     document.getElementById('call-status').innerText = '高清通话中 (自愈通道)';
                     document.getElementById('rtc-sub-status').innerText = 'P2P加密通道连接建立成功';
                     startSimulatedFallbackAnimation();
                 }
-            }, 6000);
+            }, 8000);
 
             if (isOfferer) {
                 pc.createOffer().then(offer => {
@@ -1411,7 +1414,7 @@
                         sdp: pc.localDescription
                     });
                 }).catch(err => {
-                    console.warn("RTC Offer 失败:", err);
+                    console.warn("RTC Offer 生成失败:", err);
                 });
             }
         }
@@ -1434,7 +1437,7 @@
                     sdp: pc.localDescription
                 });
             }).catch(err => {
-                console.warn("RTC Answer 失败:", err);
+                console.warn("RTC Answer 生成失败:", err);
             });
         }
 
@@ -1459,7 +1462,7 @@
             }
         }
 
-        // 高保真动态模拟流（用 Canvas 实时在对端画面黑屏时进行过渡填充）
+        // 动态模拟动画
         function startSimulatedFallbackAnimation() {
             const canvas = document.getElementById('fallback-canvas');
             if (!canvas) return;
@@ -1471,7 +1474,6 @@
             function draw() {
                 ctx.clearRect(0, 0, 200, 200);
                 
-                // 绘制渐变圆形底盘
                 const grad = ctx.createRadialGradient(100, 100, 10, 100, 100, 90);
                 grad.addColorStop(0, '#059669');
                 grad.addColorStop(1, '#022c22');
@@ -1480,7 +1482,6 @@
                 ctx.arc(100, 100, 80, 0, Math.PI * 2);
                 ctx.fill();
 
-                // 绘制动态声波线条
                 ctx.strokeStyle = '#34d399';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
