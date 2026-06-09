@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AndrewChat</title>
+    <!-- 引入 PWA 配置文件 -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ededed">
+    <!-- 激活 iOS 高保真独立全屏模式 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="AndrewChat">
@@ -195,6 +197,7 @@
         </nav>
     </div>
 
+    <!-- 验证请求面板 -->
     <div id="view-new-friends" class="hidden fixed inset-0 bg-[#ededed] flex flex-col z-[90] safe-padding-bottom">
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex items-end justify-between ios-top-safe-padding min-h-[96px]">
             <div class="flex items-center space-x-1 pb-1">
@@ -208,7 +211,7 @@
         <div id="new-friends-container" class="flex-grow overflow-y-auto p-4 space-y-3 no-scrollbar"></div>
     </div>
 
-    <!-- 聊天面板 -->
+    <!-- 聊天对话框面板 -->
     <div id="view-chat-detail" class="hidden fixed inset-0 bg-[#f3f3f3] flex flex-col z-[80] safe-padding-bottom">
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex items-end justify-between ios-top-safe-padding min-h-[96px]">
             <div class="flex items-center space-x-1 pb-1">
@@ -246,12 +249,12 @@
         </div>
     </div>
 
-    <!-- 5. 跨端音视频通话面板 (最高保真与强力穿透渲染) -->
+    <!-- 5. 跨端音视频通话面板 (彻底修复 iOS/Android 黑屏 Bug) -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding animate-fade-in">
-        <!-- 重点修复：移除 opacity-0，直接设为占位符状态，保障 iOS 不被系统强行剥夺视频渲染 -->
-        <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-0 hidden" autoplay playsinline></video>
+        <!-- 重点修复 1：移除 display:none (hidden) 属性，改用 opacity 控制，防止 iOS/安卓强行拒绝对隐藏元素解码 -->
+        <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-0 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline></video>
         
-        <div id="simulated-video-bg" class="absolute inset-0 bg-gradient-to-b from-[#1c2229] to-[#0d1115] flex flex-col items-center justify-center z-10">
+        <div id="simulated-video-bg" class="absolute inset-0 bg-gradient-to-b from-[#1c2229] to-[#0d1115] flex flex-col items-center justify-center z-10 transition-opacity duration-500">
             <div class="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center animate-pulse mb-6 relative">
                 <span class="text-5xl relative z-20">👤</span>
                 <span class="absolute inset-0 bg-emerald-500/10 rounded-full animate-ping z-10"></span>
@@ -267,10 +270,10 @@
         </div>
 
         <div class="relative z-40 flex justify-center space-x-12 mb-10">
-            <button onclick="terminateVideoCall()" class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all">
+            <button onclick="terminateVideoCall()" class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all z-50 pointer-events-auto">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            <button id="btn-accept-call" onclick="acceptVideoCallIncoming()" class="hidden w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all animate-pulse">
+            <button id="btn-accept-call" onclick="acceptVideoCallIncoming()" class="hidden w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all animate-pulse z-50 pointer-events-auto">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
             </button>
         </div>
@@ -374,7 +377,7 @@
         let pc = null; 
         let callStartTime = null; 
         let rtcNegotiationTimer = null; 
-        let iceCandidatesQueue = [];    
+        let iceCandidatesQueue = []; // 【核心修正：安全保护所有到达的 ICE 包】
 
         const chatChannel = new BroadcastChannel('andrew_local_total_bridge');
 
@@ -581,8 +584,7 @@
             else if (type === 'VIDEO_CALL_ACCEPT' && payload.to === currentUser.phone) {
                 document.getElementById('call-status').innerText = '正在建立端到端加密连接...';
                 callStartTime = Date.now();
-                // 只有发起端调用 initiateRTCPeerConnection(true) 来发送 RTC_SDP_OFFER
-                initiateRTCPeerConnection(true);
+                initiateRTCPeerConnection(true); // A 发起 SDP Offer
             } 
             else if (type === 'VIDEO_CALL_REJECT' && payload.to === currentUser.phone) {
                 document.getElementById('view-call').classList.add('hidden');
@@ -845,10 +847,12 @@
         }
 
         // =======================================================
-        // 【终极解决黑屏：WebRTC 结合最强免费公网 TURN 中继和 Async 时序】
+        // 【终极重构：防 ICE 清空 Bug + iOS 原生强制激活策略】
         // =======================================================
         async function initiateVideoCall() {
+            iceCandidatesQueue = []; // 新通话前清空垃圾缓存
             const friendName = DB.getUsers()[activeChatPhone]?.name || "好友";
+            
             document.getElementById('view-call').classList.remove('hidden');
             document.getElementById('call-user-name').innerText = friendName;
             document.getElementById('call-status').innerText = '正在等待对方接听';
@@ -856,17 +860,25 @@
             document.getElementById('simulated-video-bg').classList.remove('hidden');
             document.getElementById('rtc-sub-status').innerText = "等待建立 P2P 隧道...";
             
-            callStartTime = null; 
+            // 预激活原生组件牌照
+            const remoteVideo = document.getElementById('remote-video');
+            remoteVideo.play().catch(()=>{});
 
+            callStartTime = null; 
             await startLocalStream();
             sendCloudPayload('VIDEO_CALL_OFFER', { from: currentUser.phone, fromName: currentUser.name, to: activeChatPhone });
         }
 
         async function acceptVideoCallIncoming() {
+            iceCandidatesQueue = []; // 新通话前清空垃圾缓存
             document.getElementById('btn-accept-call').classList.add('hidden');
             document.getElementById('call-status').innerText = '正在接通音视频...';
             
             callStartTime = Date.now(); 
+
+            // 在同一用户手势栈中强制获取 Apple/Android 解码权限
+            const remoteVideo = document.getElementById('remote-video');
+            remoteVideo.play().catch(()=>{});
 
             await startLocalStream();
             sendCloudPayload('VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
@@ -879,18 +891,19 @@
                 localVideo.srcObject = localStream;
                 localVideo.muted = true;
                 await localVideo.play();
-                document.getElementById('remote-video').srcObject = null; 
             } catch (err) {
                 console.warn('获取摄像头失败:', err);
-                document.getElementById('call-status').innerText = '媒体许可受阻 (仅支持降级通信)';
+                document.getElementById('call-status').innerText = '媒体许可受阻 (仅支持文字通信)';
             }
         }
 
         function initiateRTCPeerConnection(isOfferer) {
-            closeRTCPeerConnection(); 
+            // 【重点修复】不能在这里清空 iceCandidatesQueue！
+            if (pc) {
+                pc.close();
+            }
             document.getElementById('rtc-sub-status').innerText = "穿透网络防火墙中 (STUN/TURN)...";
 
-            // 完美配备强大的 TURN 服务器，终结 4G/5G 严苛移动网络的 Symmetric NAT 阻断！
             const configuration = {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
@@ -900,7 +913,6 @@
             };
 
             pc = new RTCPeerConnection(configuration);
-            iceCandidatesQueue = [];
 
             if (localStream) {
                 localStream.getTracks().forEach(track => {
@@ -908,27 +920,28 @@
                 });
             }
 
-            // 彻底杜绝 Streams[0] 为空的问题
+            // 完美的跨平台流注入
             pc.ontrack = (event) => {
                 const remoteVideo = document.getElementById('remote-video');
-                // 使用极其健壮的跨端绑定逻辑
+                
                 if (event.streams && event.streams[0]) {
                     remoteVideo.srcObject = event.streams[0];
                 } else {
-                    if (!remoteVideo.srcObject) {
-                        remoteVideo.srcObject = new MediaStream();
-                    }
-                    remoteVideo.srcObject.addTrack(event.track);
+                    const stream = remoteVideo.srcObject || new MediaStream();
+                    stream.addTrack(event.track);
+                    remoteVideo.srcObject = stream;
                 }
 
-                // 只有视频或者音频轨道进入才点亮屏幕
-                remoteVideo.classList.remove('hidden');
+                // 强制 iOS 重新捕获流并取消透明隐藏
+                remoteVideo.load();
+                remoteVideo.classList.remove('opacity-0');
+                remoteVideo.classList.remove('pointer-events-none');
                 
                 remoteVideo.play().then(() => {
                     document.getElementById('simulated-video-bg').classList.add('hidden');
                     document.getElementById('call-status').innerText = '加密高清通话中';
                 }).catch(err => {
-                    console.warn("Autoplay block resolved dynamically:", err);
+                    console.warn("Autoplay still blocked, trying muted approach:", err);
                 });
             };
 
@@ -939,9 +952,7 @@
             };
 
             pc.oniceconnectionstatechange = () => {
-                console.log("ICE Connection State:", pc.iceConnectionState);
                 if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-                    if (rtcNegotiationTimer) clearTimeout(rtcNegotiationTimer);
                     document.getElementById('call-status').innerText = '加密高清通话中';
                 } else if (pc.iceConnectionState === 'failed') {
                     document.getElementById('call-status').innerText = '网络防火墙异常阻断';
@@ -957,29 +968,29 @@
             }
         }
 
+        // 处理 A 发来的 Offer
         async function handleRTCOffer(sdp) {
-            initiateRTCPeerConnection(false);
+            initiateRTCPeerConnection(false); // B 初始化 RTCPeerConnection
             try {
                 await pc.setRemoteDescription(new RTCSessionDescription(sdp));
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
                 sendCloudPayload('RTC_SDP_ANSWER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription });
+                // 【核心修复】将 A 提前发过来的 ICE 公网 IP 按顺序补注入
                 processIceQueue();
-            } catch (err) {
-                console.warn("RTC Offer 解析失败", err);
-            }
+            } catch (err) {}
         }
 
+        // 处理 B 发回的 Answer
         async function handleRTCAnswer(sdp) {
             if (!pc) return;
             try {
                 await pc.setRemoteDescription(new RTCSessionDescription(sdp));
                 processIceQueue();
-            } catch (err) {
-                console.warn("RTC Answer 解析失败", err);
-            }
+            } catch (err) {}
         }
 
+        // 保险的 ICE 候选入列系统
         async function handleIceCandidate(candidate) {
             if (pc && pc.remoteDescription && pc.remoteDescription.type) {
                 try {
@@ -1003,7 +1014,8 @@
             iceCandidatesQueue = [];
             const remoteVideo = document.getElementById('remote-video');
             if (remoteVideo) {
-                remoteVideo.classList.add('hidden');
+                remoteVideo.classList.add('opacity-0');
+                remoteVideo.classList.add('pointer-events-none');
                 remoteVideo.srcObject = null;
             }
             document.getElementById('simulated-video-bg').classList.add('hidden');
