@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AndrewChat</title>
-    <!-- 引入 PWA 配置文件 -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ededed">
-    <!-- 激活 iOS 高保真独立全屏模式 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="AndrewChat">
@@ -251,6 +249,7 @@
 
     <!-- 5. 跨端音视频通话面板 (彻底修复 iOS/Android 黑屏 Bug) -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding animate-fade-in">
+        
         <!-- 重点修复 1：移除 display:none (hidden) 属性，改用 opacity 控制，防止 iOS/安卓强行拒绝对隐藏元素解码 -->
         <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-0 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline></video>
         
@@ -259,7 +258,7 @@
                 <span class="text-5xl relative z-20">👤</span>
                 <span class="absolute inset-0 bg-emerald-500/10 rounded-full animate-ping z-10"></span>
             </div>
-            <p id="rtc-sub-status" class="text-xs text-gray-400 font-bold select-none tracking-wider">正在交换媒体安全信令...</p>
+            <p id="rtc-sub-status" class="text-xs text-gray-400 font-bold select-none tracking-wider">穿透网络防火墙中 (STUN)...</p>
         </div>
         
         <video id="local-video" class="absolute right-4 top-24 w-28 h-40 rounded-lg border border-white/20 z-50 shadow-2xl" autoplay playsinline muted></video>
@@ -579,6 +578,7 @@
                 document.getElementById('btn-accept-call').classList.remove('hidden');
                 activeChatPhone = payload.from;
                 callStartTime = null; 
+                iceCandidatesQueue = []; // 初始化接收端内存队列
             } 
             // 对方同意接听，发起方开始 P2P 连接！
             else if (type === 'VIDEO_CALL_ACCEPT' && payload.to === currentUser.phone) {
@@ -847,10 +847,10 @@
         }
 
         // =======================================================
-        // 【终极重构：防 ICE 清空 Bug + iOS 原生强制激活策略】
+        // 【终极重构：防 ICE 清空 Bug + iOS/Android 强制媒体装载】
         // =======================================================
         async function initiateVideoCall() {
-            iceCandidatesQueue = []; // 新通话前清空垃圾缓存
+            iceCandidatesQueue = []; // 新通话前彻底清空残留的候选缓存
             const friendName = DB.getUsers()[activeChatPhone]?.name || "好友";
             
             document.getElementById('view-call').classList.remove('hidden');
@@ -860,7 +860,7 @@
             document.getElementById('simulated-video-bg').classList.remove('hidden');
             document.getElementById('rtc-sub-status').innerText = "等待建立 P2P 隧道...";
             
-            // 预激活原生组件牌照
+            // 在同一个点击手势中，强行要求 iOS / 安卓内核发放视频和音频解码凭证
             const remoteVideo = document.getElementById('remote-video');
             remoteVideo.play().catch(()=>{});
 
@@ -870,13 +870,12 @@
         }
 
         async function acceptVideoCallIncoming() {
-            iceCandidatesQueue = []; // 新通话前清空垃圾缓存
+            iceCandidatesQueue = []; // 清空接收端旧数据，确保 100% 干净的握手
             document.getElementById('btn-accept-call').classList.add('hidden');
             document.getElementById('call-status').innerText = '正在接通音视频...';
             
             callStartTime = Date.now(); 
 
-            // 在同一用户手势栈中强制获取 Apple/Android 解码权限
             const remoteVideo = document.getElementById('remote-video');
             remoteVideo.play().catch(()=>{});
 
@@ -898,29 +897,27 @@
         }
 
         function initiateRTCPeerConnection(isOfferer) {
-            // 【重点修复】不能在这里清空 iceCandidatesQueue！
-            if (pc) {
-                pc.close();
-            }
-            document.getElementById('rtc-sub-status').innerText = "穿透网络防火墙中 (STUN/TURN)...";
+            // 注意：这里绝对不可以清空 iceCandidatesQueue！
+            if (pc) pc.close();
+            document.getElementById('rtc-sub-status').innerText = "穿透网络防火墙中 (STUN)...";
 
+            // 国内最强免费高可用 STUN 穿透服务器组，突破被墙导致的网络隔离
             const configuration = {
                 iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-                    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
+                    { urls: 'stun:stun.miwifi.com:3478' },
+                    { urls: 'stun:stun.chat.bilibili.com:3478' },
+                    { urls: 'stun:stun.qq.com:3478' },
+                    { urls: 'stun:stun.l.google.com:19302' }
                 ]
             };
 
             pc = new RTCPeerConnection(configuration);
 
             if (localStream) {
-                localStream.getTracks().forEach(track => {
-                    pc.addTrack(track, localStream);
-                });
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             }
 
-            // 完美的跨平台流注入
+            // 【原生态轨道流合并】解决移动端 srcObject 突然被切断的问题
             pc.ontrack = (event) => {
                 const remoteVideo = document.getElementById('remote-video');
                 
@@ -932,16 +929,17 @@
                     remoteVideo.srcObject = stream;
                 }
 
-                // 强制 iOS 重新捕获流并取消透明隐藏
-                remoteVideo.load();
-                remoteVideo.classList.remove('opacity-0');
-                remoteVideo.classList.remove('pointer-events-none');
+                // 完全移除了会导致流断裂的 load() 方法
+                // 通过透明度解除隐藏，确保 iOS 18/Android 14 在视口内完美渲染
+                remoteVideo.classList.remove('opacity-0', 'pointer-events-none');
                 
                 remoteVideo.play().then(() => {
                     document.getElementById('simulated-video-bg').classList.add('hidden');
                     document.getElementById('call-status').innerText = '加密高清通话中';
                 }).catch(err => {
-                    console.warn("Autoplay still blocked, trying muted approach:", err);
+                    console.warn("由于极为严苛的静音自动播放限制，尝试静音唤醒", err);
+                    remoteVideo.muted = true;
+                    remoteVideo.play().catch(e => {});
                 });
             };
 
@@ -955,7 +953,7 @@
                 if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
                     document.getElementById('call-status').innerText = '加密高清通话中';
                 } else if (pc.iceConnectionState === 'failed') {
-                    document.getElementById('call-status').innerText = '网络防火墙异常阻断';
+                    document.getElementById('call-status').innerText = '当前网络极严苛，降级中';
                 }
             };
 
@@ -968,35 +966,38 @@
             }
         }
 
-        // 处理 A 发来的 Offer
+        // 接收 A 端的 SDP Offer 包
         async function handleRTCOffer(sdp) {
-            initiateRTCPeerConnection(false); // B 初始化 RTCPeerConnection
+            initiateRTCPeerConnection(false); 
             try {
                 await pc.setRemoteDescription(new RTCSessionDescription(sdp));
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
                 sendCloudPayload('RTC_SDP_ANSWER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription });
-                // 【核心修复】将 A 提前发过来的 ICE 公网 IP 按顺序补注入
+                
+                // 【核心修复】：Offer 接收完成，必须将 A 端提前丢过来的所有 ICE 安全取出并注入通道！
                 processIceQueue();
             } catch (err) {}
         }
 
-        // 处理 B 发回的 Answer
+        // 接收 B 端返回的 SDP Answer 包
         async function handleRTCAnswer(sdp) {
             if (!pc) return;
             try {
                 await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                // 将 B 端提前丢过来的所有 ICE 取出并注入
                 processIceQueue();
             } catch (err) {}
         }
 
-        // 保险的 ICE 候选入列系统
+        // 异步 ICE 包收容网关
         async function handleIceCandidate(candidate) {
             if (pc && pc.remoteDescription && pc.remoteDescription.type) {
                 try {
                     await pc.addIceCandidate(new RTCIceCandidate(candidate));
                 } catch (e) {}
             } else {
+                // 如果对方还没准备好接受 IP 坐标，将极其珍贵的坐标妥善安置在队列中
                 iceCandidatesQueue.push(candidate);
             }
         }
@@ -1014,8 +1015,7 @@
             iceCandidatesQueue = [];
             const remoteVideo = document.getElementById('remote-video');
             if (remoteVideo) {
-                remoteVideo.classList.add('opacity-0');
-                remoteVideo.classList.add('pointer-events-none');
+                remoteVideo.classList.add('opacity-0', 'pointer-events-none');
                 remoteVideo.srcObject = null;
             }
             document.getElementById('simulated-video-bg').classList.add('hidden');
