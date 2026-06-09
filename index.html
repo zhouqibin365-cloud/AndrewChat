@@ -17,7 +17,12 @@
     
     <!-- Tailwind CSS 界面框架 -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
+        :root {
+            --vh: 1vh;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: #ededed;
@@ -28,15 +33,28 @@
             -webkit-user-select: none;
             overflow: hidden;
             -webkit-tap-highlight-color: transparent;
+            
+            /* Pixel 9 高精动态视口高度适配，完全抗震，杜绝底部截断 */
+            height: 100vh;
+            height: calc(var(--vh, 1vh) * 100);
+            height: 100dvh;
         }
 
-        /* iOS 顶部刘海屏与灵动岛双重防呆保护，留足状态栏空间 */
+        /* 强力强制容器撑满最新视口 */
+        .h-viewport-fix {
+            height: 100vh !important;
+            height: calc(var(--vh, 1vh) * 100) !important;
+            height: 100dvh !important;
+        }
+
+        /* iOS 顶部刘海屏与灵动岛、Pixel 9 顶部摄像头开孔双重防呆保护 */
         .ios-top-safe-padding {
-            padding-top: calc(env(safe-area-inset-top, 24px) + 32px) !important;
+            padding-top: calc(env(safe-area-inset-top, 24px) + 28px) !important;
         }
         
+        /* 针对 Android 虚拟导航键 & iOS 底部 Home 指示条的精密双保险底层边距 */
         .safe-padding-bottom {
-            padding-bottom: env(safe-area-inset-bottom, 0px);
+            padding-bottom: max(env(safe-area-inset-bottom, 0px), 14px) !important;
         }
 
         /* 微信经典绿色主按钮 */
@@ -101,7 +119,7 @@
         }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden select-none">
+<body class="flex flex-col h-viewport-fix overflow-hidden select-none">
 
     <!-- 全局防死锁云初始化加载层 -->
     <div id="loading-layer" class="fixed inset-0 bg-[#ededed] z-[2000] flex flex-col items-center justify-center space-y-4">
@@ -113,7 +131,7 @@
     </div>
 
     <!-- 顶端自适应消息弹窗 -->
-    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 px-4 py-2.5 bg-gray-900/95 text-white text-xs rounded-full opacity-0 pointer-events-none transition-all duration-300 z-[1000] shadow-2xl flex items-center space-x-2">
+    <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 px-4 py-2.5 bg-gray-900/95 text-white text-xs rounded-full opacity-0 pointer-events-none transition-all duration-300 z-[1000] shadow-2xl flex items-center space-x-2">
         <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
         <span id="toast-text">通知消息</span>
     </div>
@@ -149,7 +167,7 @@
     </div>
 
     <!-- 2. 主界面模块 -->
-    <div id="view-main" class="hidden flex-col h-screen overflow-hidden bg-[#f7f7f7]">
+    <div id="view-main" class="hidden flex-col h-viewport-fix overflow-hidden bg-[#f7f7f7]">
         <!-- 头部导航栏 -->
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex justify-between items-end ios-top-safe-padding relative z-40 min-h-[96px]">
             <div class="flex flex-col">
@@ -238,39 +256,39 @@
             </div>
         </div>
 
-        <!-- 底部导航 -->
-        <nav class="border-t border-[#d2d2d2] bg-[#f7f7f7] flex justify-around items-center safe-padding-bottom min-h-[58px] z-40 relative">
-            <button onclick="switchTab('chat')" id="nav-chat" class="flex-grow flex flex-col items-center justify-center text-[#07c160] py-1 relative">
+        <!-- 底部导航 (加入了高精自适应安全底层间距，解决 Pixel 9 手势条重合截断) -->
+        <nav class="border-t border-[#d2d2d2] bg-[#f7f7f7] flex justify-around items-center safe-padding-bottom min-h-[64px] z-40 relative">
+            <button onclick="switchTab('chat')" id="nav-chat" class="flex-grow flex flex-col items-center justify-center text-[#07c160] py-1.5 relative">
                 <div class="relative">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm11.378-3.917c-.89-.777-2.366-.777-3.255 0a.75.75 0 01-.988-1.13c1.434-1.25 3.8-1.25 5.23 0a.75.75 0 01-.987 1.13z"/></svg>
                     <!-- 全局未读消息总红标 -->
                     <div id="unread-chats-badge" class="hidden absolute -top-1.5 -right-2 px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded-full font-bold leading-none min-w-[14px] text-center border border-white">0</div>
                 </div>
-                <span class="text-[10px] mt-0.5 font-medium">微信</span>
+                <span class="text-[10px] mt-0.5 font-semibold">微信</span>
             </button>
             
-            <button onclick="switchTab('contacts')" id="nav-contacts" class="flex-grow flex flex-col items-center justify-center text-gray-400 py-1 relative">
+            <button onclick="switchTab('contacts')" id="nav-contacts" class="flex-grow flex flex-col items-center justify-center text-gray-400 py-1.5 relative">
                 <div class="relative">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
                     <!-- 通讯录未读申请大红点 -->
                     <div id="contacts-tab-dot" class="hidden absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
                 </div>
-                <span class="text-[10px] mt-0.5 font-medium">通讯录</span>
+                <span class="text-[10px] mt-0.5 font-semibold">通讯录</span>
             </button>
             
-            <button onclick="switchTab('find')" id="nav-find" class="flex-grow flex flex-col items-center justify-center text-gray-400 py-1">
+            <button onclick="switchTab('find')" id="nav-find" class="flex-grow flex flex-col items-center justify-center text-gray-400 py-1.5">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12.75 3.03v.568c0 .334.148.65.405.864l4.038 3.348a.75.75 0 01.187.1l-4.038 3.348a1.125 1.125 0 01-.405-.244v-.568a1.125 1.125 0 00-1.125-1.125h-2.25a1.125 1.125 0 00-1.125 1.125v.568a1.125 1.125 0 01-.405-.244L4.038 9.89a.75.75 0 01.187-.1l4.038-3.348a1.125 1.125 0 01.405-.1v-.568A1.125 1.125 0 0110.125 4.5h2.25A1.125 1.125 0 0112.75 3.03z"/></svg>
-                <span class="text-[10px] mt-0.5 font-medium">发现</span>
+                <span class="text-[10px] mt-0.5 font-semibold">发现</span>
             </button>
-            <button onclick="switchTab('me')" id="nav-me" class="flex-grow flex flex-col items-center justify-center text-gray-400 py-1">
+            <button onclick="switchTab('me')" id="nav-me" class="flex-grow flex flex-col items-center justify-center text-gray-400 py-1.5">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
-                <span class="text-[10px] mt-0.5 font-medium">我</span>
+                <span class="text-[10px] mt-0.5 font-semibold">我</span>
             </button>
         </nav>
     </div>
 
     <!-- 3. 高保真“新的朋友”验证请求面板 -->
-    <div id="view-new-friends" class="hidden fixed inset-0 bg-[#ededed] flex flex-col z-[90] safe-padding-bottom">
+    <div id="view-new-friends" class="hidden fixed inset-0 bg-[#ededed] flex flex-col z-[90] h-viewport-fix safe-padding-bottom">
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex items-end justify-between ios-top-safe-padding min-h-[96px]">
             <div class="flex items-center space-x-1 pb-1">
                 <button onclick="closeNewFriendsList()" class="text-gray-700 p-2 -ml-2 hover:bg-gray-200/50 rounded-full transition-colors">
@@ -284,7 +302,7 @@
     </div>
 
     <!-- 4. 高保真聊天对话框面板 -->
-    <div id="view-chat-detail" class="hidden fixed inset-0 bg-[#f3f3f3] flex flex-col z-[80] safe-padding-bottom">
+    <div id="view-chat-detail" class="hidden fixed inset-0 bg-[#f3f3f3] flex flex-col z-[80] h-viewport-fix safe-padding-bottom">
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex items-end justify-between ios-top-safe-padding min-h-[96px]">
             <div class="flex items-center space-x-1 pb-1">
                 <button onclick="closeChatDetail()" class="text-gray-700 p-2 -ml-2 focus:outline-none hover:bg-gray-200/50 rounded-full transition-colors">
@@ -322,7 +340,7 @@
     </div>
 
     <!-- 5. P2P 跨设备音视频通话大屏 -->
-    <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding">
+    <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding h-viewport-fix">
         <!-- 核心画面层 -->
         <video id="remote-video" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
         
@@ -356,7 +374,7 @@
     </div>
 
     <!-- 6. 微信朋友圈面板 -->
-    <div id="view-moments" class="hidden fixed inset-0 bg-[#f7f7f7] flex flex-col z-[90] safe-padding-bottom">
+    <div id="view-moments" class="hidden fixed inset-0 bg-[#f7f7f7] flex flex-col z-[90] h-viewport-fix safe-padding-bottom">
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex items-end justify-between ios-top-safe-padding min-h-[84px]">
             <button onclick="closeMoments()" class="text-gray-700 p-1 pb-1">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
@@ -465,6 +483,14 @@
 
         const chatChannel = new BroadcastChannel('andrew_local_total_bridge');
 
+        // ==========================================
+        // 【新增自愈】 Pixel 9 视口高精物理重测同步引擎
+        // ==========================================
+        function syncPixelViewportHeight() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+
         function showToast(text) {
             const toast = document.getElementById('toast');
             document.getElementById('toast-text').innerText = text;
@@ -477,6 +503,11 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
+            // 初始化 Pixel 9 高度同步
+            syncPixelViewportHeight();
+            window.addEventListener('resize', syncPixelViewportHeight);
+            window.addEventListener('orientationchange', syncPixelViewportHeight);
+
             setTimeout(() => {
                 const loader = document.getElementById('loading-layer');
                 if (loader && !loader.classList.contains('hidden')) {
@@ -1267,7 +1298,7 @@
         }
 
         // =======================================================
-        // 【核心大重构】WebRTC 真物理媒体协商轨道合并 + Canvas 动态自愈
+        // WebRTC 真物理媒体协商轨道合并 + Canvas 动态自愈
         // =======================================================
         async function initiateVideoCall() {
             document.getElementById('view-call').classList.remove('hidden');
@@ -1277,7 +1308,7 @@
             
             callStartTime = null; 
 
-            // 预激活本地/对端 HTML5 视频对象的安全播放标志 (iOS 必须在用户手势里预激活)
+            // 预激活本地/对端 HTML5 视频对象的安全播放标志 (iOS & Android 必须在用户手势里预激活)
             document.getElementById('local-video').play().catch(()=>{});
             document.getElementById('remote-video').play().catch(()=>{});
 
@@ -1337,8 +1368,7 @@
                 });
             }
 
-            // 【核心修复 1：轨道流增量装配】
-            // 如果 event.streams 延迟解析，我们主动合并 Track 生成稳健的 MediaStream
+            // 【增量轨道装配机制：完美解决对端画面黑屏问题】
             const remoteStream = new MediaStream();
             pc.ontrack = (event) => {
                 console.log("WebRTC 物理通道协商成功，轨道增量装配中:", event.track.kind);
@@ -1374,7 +1404,7 @@
                 }
             };
 
-            // 【核心修复 2：自愈自修复动态流】
+            // 【自愈自修复动态流】
             // 如果两台手机由于网络防火墙原因，导致 STUN 无法完成握手时（超过 6 秒未建立连接），自愈引擎将自动切入
             rtcNegotiationTimer = setTimeout(() => {
                 const remoteVideo = document.getElementById('remote-video');
@@ -1568,10 +1598,10 @@
             const tabs = ['chat', 'contacts', 'find', 'me'];
             tabs.forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
-                document.getElementById(`nav-${t}`).className = "flex-grow flex flex-col items-center justify-center text-gray-400 py-1";
+                document.getElementById(`nav-${t}`).className = "flex-grow flex flex-col items-center justify-center text-gray-400 py-1.5";
             });
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-            document.getElementById(`nav-${tabId}`).className = "flex-grow flex flex-col items-center justify-center text-[#07c160] py-1";
+            document.getElementById(`nav-${tabId}`).className = "flex-grow flex flex-col items-center justify-center text-[#07c160] py-1.5";
 
             const titles = { chat: '微信', contacts: '通讯录', find: '发现', me: '我的' };
             document.getElementById('main-title').innerText = titles[tabId];
