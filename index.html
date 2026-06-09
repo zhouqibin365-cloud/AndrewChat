@@ -111,7 +111,7 @@
             <div class="absolute inset-0 rounded-full border-4 border-[#07c160]/20"></div>
             <div class="absolute inset-0 rounded-full border-4 border-[#07c160] border-t-transparent animate-spin"></div>
         </div>
-        <p class="text-sm font-bold text-gray-500 tracking-wide">正在连入 AndrewChat 云端自愈通道...</p>
+        <p class="text-sm font-bold text-gray-500 tracking-wide">正在连入 AndrewChat 全球自愈通道...</p>
     </div>
 
     <!-- 自适应提示横幅 -->
@@ -150,6 +150,7 @@
 
     <!-- 2. 微信主面板 -->
     <div id="view-main" class="hidden flex-col h-full overflow-hidden bg-[#f7f7f7]">
+        <!-- 头部导航栏 -->
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex justify-between items-end ios-top-safe-padding relative z-40 min-h-[96px]">
             <div class="flex flex-col">
                 <button onclick="toggleDebugConsole()" class="text-[9px] font-bold text-[#07c160] tracking-wider uppercase mb-1 flex items-center bg-[#07c160]/10 px-2.5 py-1 rounded-full border border-[#07c160]/20 active:scale-95 transition-all">
@@ -307,9 +308,9 @@
         </div>
     </div>
 
-    <!-- 5. 跨端音视频通话面板 (彻底自愈防黑屏) -->
+    <!-- 5. 跨端音视频通话面板 (自愈与穿透强化) -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding animate-fade-in">
-        <!-- 核心物理视频层：使用 opacity 控制，坚决不在 iOS 上使用 hidden，以保持渲染管线常态激活 -->
+        <!-- 核心物理视频层 -->
         <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-0 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline></video>
         
         <div id="simulated-video-bg" class="absolute inset-0 bg-gradient-to-b from-[#1c2229] to-[#0d1115] flex flex-col items-center justify-center z-10 transition-opacity duration-500">
@@ -378,7 +379,6 @@
             </div>
         </header>
         <div class="flex-grow overflow-y-auto p-4 space-y-4 text-xs font-mono no-scrollbar">
-            <!-- 运行状态大盘 -->
             <div class="grid grid-cols-2 gap-2 bg-gray-800/80 p-3 rounded-xl border border-gray-700">
                 <div><span class="text-gray-400">Signaling State:</span> <span id="diag-signaling" class="text-yellow-300">NULL</span></div>
                 <div><span class="text-gray-400">ICE Connection:</span> <span id="diag-ice-conn" class="text-yellow-300">NULL</span></div>
@@ -387,8 +387,6 @@
                 <div class="col-span-2"><span class="text-gray-400">Local Stream:</span> <span id="diag-local-stream" class="text-red-400">Not Captured</span></div>
                 <div class="col-span-2"><span class="text-gray-400">Remote Stream:</span> <span id="diag-remote-stream" class="text-red-400">Not Subscribed</span></div>
             </div>
-
-            <!-- 控制台日志 -->
             <div class="space-y-1">
                 <h4 class="text-gray-400 font-bold text-[10px] border-b border-gray-800 pb-1">实时控制台消息流</h4>
                 <div id="debug-log-console" class="bg-black/40 p-3 rounded-lg h-44 overflow-y-auto text-[10px] text-gray-300 space-y-1 leading-relaxed no-scrollbar">
@@ -398,10 +396,10 @@
         </div>
     </div>
 
-    <!-- 100% 整合版安全业务与媒体中继底层引擎（严禁分块拆写） -->
+    <!-- 微信核心脚本整合大底座 (防沙箱阻断与高自愈信道) -->
     <script>
         // ----------------------------------------------------
-        // 1. 微信日志调试钩子
+        // 1. 微信日志调试工具 (置顶定义避免 undefined)
         // ----------------------------------------------------
         window.debugLogs = [];
         const originalLog = console.log;
@@ -444,7 +442,7 @@
             dummy.select();
             document.execCommand('copy');
             document.body.removeChild(dummy);
-            showToast('已复制全部调试日志！');
+            showToast('已复制诊断全部日志！');
         }
 
         async function testLocalWebRTCCapability() {
@@ -460,7 +458,7 @@
                 testPc.createDataChannel("diagnostic-test-pipe");
                 testPc.onicecandidate = (e) => {
                     if (e.candidate) {
-                        console.log(`[穿透自测] 搜集到候选坐标: Type=${e.candidate.type} | Protocol=${e.candidate.protocol} | Addr=${e.candidate.address}:${e.candidate.port}`);
+                        console.log(`[穿透自测] 成功搜集到候选坐标: Type=${e.candidate.type} | Protocol=${e.candidate.protocol} | Addr=${e.candidate.address}:${e.candidate.port}`);
                     } else {
                         console.log("=== 穿透自测完成 ===");
                     }
@@ -473,7 +471,7 @@
         }
 
         // ----------------------------------------------------
-        // 2. 音频合成器（惰性延迟初始化避免顶层阻断报错）
+        // 2. 音频合成器
         // ----------------------------------------------------
         let audioCtxInstance = null;
         function getAudioContext() {
@@ -481,7 +479,7 @@
                 try {
                     audioCtxInstance = new (window.AudioContext || window.webkitAudioContext)();
                 } catch(e) {
-                    console.warn("当前环境阻断或不支持音频上下文，音效已静音自愈");
+                    console.warn("音效已静音自愈");
                 }
             }
             return audioCtxInstance;
@@ -538,13 +536,13 @@
         };
 
         // ----------------------------------------------------
-        // 4. 惰性 BroadcastChannel 初始化 (杜绝沙盒报错)
+        // 4. 惰性 BroadcastChannel 初始化
         // ----------------------------------------------------
         let chatChannel = null;
         try {
             chatChannel = new BroadcastChannel('andrew_local_total_bridge');
         } catch(e) {
-            console.warn("当前浏览器沙盒限制了 BroadcastChannel, 降级至本地单会话自愈模式");
+            console.warn("降级至本地单会话自愈模式");
             chatChannel = {
                 postMessage() {},
                 addEventListener() {},
@@ -564,15 +562,14 @@
         pc = null; 
         callStartTime = null; 
         rtcNegotiationTimer = null; 
-        iceCandidatesQueue = []; // 保留并暂存所有 A、B 之间提前送达的 ICE 公网坐标包
+        iceCandidatesQueue = []; // 暂存对端 ICE 坐标包
+        let chunkBuffer = {}; // 信令拆包重组缓冲区
 
-        // 视口调试
         function adjustViewportHeight() {
             const vh = window.innerHeight * 0.01;
             document.documentElement.style.setProperty('--vh', `${vh}px`);
         }
 
-        // 绑定全局点击及生命周期
         window.addEventListener('DOMContentLoaded', () => {
             adjustViewportHeight();
             window.addEventListener('resize', adjustViewportHeight);
@@ -607,7 +604,7 @@
         });
 
         // ----------------------------------------------------
-        // 6. 微信用户登录/注册流程 (绑定至 window)
+        // 6. 微信用户登录/注册流程
         // ----------------------------------------------------
         window.switchAuthMode = function(mode) {
             authMode = mode;
@@ -629,7 +626,7 @@
         window.handleAuthSubmit = function() {
             const phone = document.getElementById('login-phone').value.trim();
             const pwd = document.getElementById('login-pwd').value;
-            if (!phone || !pwd) return showToast('请完整填写手机号和密码！');
+            if (!phone || !pwd) return showToast('请完整填写手机号 and 密码！');
 
             let users = DB.getUsers();
             if (authMode === 'login') {
@@ -677,6 +674,7 @@
             } catch (err) {}
         }
 
+        // 标准小数据发送
         function sendCloudPayload(type, payload, targetUserPhone = null) {
             chatChannel.postMessage({ type, payload });
             const destPhone = targetUserPhone || activeChatPhone || (payload ? payload.to : null);
@@ -686,6 +684,28 @@
                 headers: { 'X-Title': 'AndrewChat Notification', 'X-Tags': 'chat' },
                 body: JSON.stringify({ type, payload })
             }).catch(()=>{});
+        }
+
+        // 【核心大修复：高灵敏切片式无损大包投递网关 (拆分 SDP 避免 ntfy 截断)】
+        function sendLargePayload(type, payload, targetPhone) {
+            const jsonStr = JSON.stringify(payload);
+            const chunkSize = 800; // 安全分片大小，100% 绕过中继丢弃屏控
+            const total = Math.ceil(jsonStr.length / chunkSize);
+            const transferId = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+
+            console.log(`[拆包网关] 发起大包信令分片投递 [${type}], 总长度: ${jsonStr.length} 字节, 切分为 ${total} 片`);
+
+            for (let i = 0; i < total; i++) {
+                const chunk = jsonStr.substring(i * chunkSize, (i + 1) * chunkSize);
+                sendCloudPayload('PAYLOAD_CHUNK', {
+                    transferId: transferId,
+                    type: type, 
+                    index: i,
+                    total: total,
+                    chunk: chunk,
+                    to: targetPhone
+                }, targetPhone);
+            }
         }
 
         async function pullOfflineBeacons() {
@@ -701,7 +721,7 @@
                         if (rawData.event === 'message') {
                             const parsed = JSON.parse(rawData.message);
                             // 过滤历史消息包中的废旧呼叫协商，防止状态机被历史包污染发生紊乱死锁
-                            if (['VIDEO_CALL_OFFER', 'VIDEO_CALL_ACCEPT', 'VIDEO_CALL_REJECT', 'RTC_SDP_OFFER', 'RTC_SDP_ANSWER', 'RTC_ICE_CANDIDATE'].includes(parsed.type)) {
+                            if (['VIDEO_CALL_OFFER', 'VIDEO_CALL_ACCEPT', 'VIDEO_CALL_REJECT', 'RTC_SDP_OFFER', 'RTC_SDP_ANSWER', 'RTC_ICE_CANDIDATE', 'PAYLOAD_CHUNK'].includes(parsed.type)) {
                                 return; 
                             }
                             handleMessageBridge(parsed.type, parsed.payload);
@@ -713,6 +733,29 @@
 
         function handleMessageBridge(type, payload) {
             if (!currentUser) return;
+
+            // 处理分包重组信令
+            if (type === 'PAYLOAD_CHUNK' && payload.to === currentUser.phone) {
+                const { transferId, type: originalType, index, total, chunk } = payload;
+                if (!chunkBuffer[transferId]) {
+                    chunkBuffer[transferId] = new Array(total).fill(null);
+                }
+                chunkBuffer[transferId][index] = chunk;
+
+                // 检查是否所有分片到齐
+                if (chunkBuffer[transferId].every(c => c !== null)) {
+                    const fullJSON = chunkBuffer[transferId].join('');
+                    delete chunkBuffer[transferId]; // 释放内存
+                    try {
+                        const originalPayload = JSON.parse(fullJSON);
+                        console.log(`[拆包网关] 信令分片成功集齐并重组还原 [${originalType}], 大小: ${fullJSON.length} 字节`);
+                        handleMessageBridge(originalType, originalPayload);
+                    } catch(e) {
+                        console.error("[拆包网关] 反序列化重组信令失败:", e);
+                    }
+                }
+                return;
+            }
 
             if (type === 'FRIEND_REQUEST_SYNC' && payload.targetPhone === currentUser.phone) {
                 let requests = DB.getRequests();
@@ -757,7 +800,6 @@
                     }
                 }
             }
-            // 接收端收到呼叫
             else if (type === 'VIDEO_CALL_OFFER' && payload.to === currentUser.phone) {
                 playAudio('ring');
                 document.getElementById('view-call').classList.remove('hidden');
@@ -768,7 +810,6 @@
                 callStartTime = null; 
                 iceCandidatesQueue = []; 
             } 
-            // 发起端收到对方同意呼叫 -> 开启 PeerConnection
             else if (type === 'VIDEO_CALL_ACCEPT' && payload.to === currentUser.phone) {
                 document.getElementById('call-status').innerText = '正在建立端到端加密连接...';
                 callStartTime = Date.now();
@@ -782,7 +823,6 @@
                 const duration = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
                 logVideoCallRecord(duration, false);
             }
-            // 核心 SDP & ICE 连接接收处理
             else if (type === 'RTC_SDP_OFFER' && payload.to === currentUser.phone) {
                 handleRTCOffer(payload.sdp);
             } else if (type === 'RTC_SDP_ANSWER' && payload.to === currentUser.phone) {
@@ -812,7 +852,7 @@
         }
 
         // ----------------------------------------------------
-        // 8. 微信交互渲染面板 (绑定至 window 供 inline 调用)
+        // 8. 微信交互面板
         // ----------------------------------------------------
         window.switchTab = function(tabId) {
             const tabs = ['chat', 'contacts', 'find', 'me'];
@@ -1105,7 +1145,7 @@
         };
 
         window.acceptVideoCallIncoming = async function() {
-            iceCandidatesQueue = []; // 避免接收端缓存旧的过时候选
+            iceCandidatesQueue = []; // 重置接收端旧信令，防止旧坐标干扰
             document.getElementById('btn-accept-call').classList.add('hidden');
             document.getElementById('call-status').innerText = '正在接通音视频...';
             
@@ -1129,12 +1169,12 @@
                 document.getElementById('diag-local-stream').className = "text-emerald-400";
             } catch (err) {
                 console.warn('获取本端摄像头轨道失败:', err);
-                document.getElementById('call-status').innerText = '媒体许可受阻 (降级通话中)';
+                document.getElementById('call-status').innerText = '媒体许可受阻 (仅支持降级语音通信)';
             }
         }
 
         function initiateRTCPeerConnection(isOfferer) {
-            // 【修正：千万不要清空 iceCandidatesQueue】
+            // 【重点修复】不能在这里清空 iceCandidatesQueue！
             if (pc) pc.close();
             document.getElementById('rtc-sub-status').innerText = "穿透中 (小米/腾讯 STUN 集群)...";
 
@@ -1206,7 +1246,8 @@
                 pc.createOffer().then(offer => {
                     return pc.setLocalDescription(offer);
                 }).then(() => {
-                    sendCloudPayload('RTC_SDP_OFFER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription });
+                    // 【终极方案大修复】：将超大 Offer 采用分片网关拆包投递，100% 拒绝被公网中继裁切
+                    sendLargePayload('RTC_SDP_OFFER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription }, activeChatPhone);
                 });
             }
         }
@@ -1217,7 +1258,8 @@
                 await pc.setRemoteDescription(new RTCSessionDescription(sdp));
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
-                sendCloudPayload('RTC_SDP_ANSWER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription });
+                // 【终极方案大修复】：将超大 Answer 采用分片网关拆包投递，100% 拒绝被公网中继裁切
+                sendLargePayload('RTC_SDP_ANSWER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription }, activeChatPhone);
                 
                 // SDP 协商完毕，有序清空缓冲池内的 ICE 包
                 processIceQueue();
