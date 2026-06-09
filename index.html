@@ -4,14 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AndrewChat</title>
+    <!-- 引入 PWA 配置文件 -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ededed">
+    <!-- 激活 iOS 高保真独立全屏模式 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="AndrewChat">
     
+    <!-- 苹果原生高精度桌面图标 -->
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/WeChat_logo.svg/512px-WeChat_logo.svg.png">
     
+    <!-- Tailwind CSS 界面框架 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -26,27 +30,82 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        .ios-top-safe-padding { padding-top: calc(env(safe-area-inset-top, 24px) + 32px) !important; }
-        .safe-padding-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+        /* 视口高度自定义变量（Pixel 9 适配） */
+        :root {
+            --vh: 1vh;
+        }
 
-        .btn-wechat { background-color: #07c160; color: #ffffff; transition: background-color 0.2s; }
-        .btn-wechat:active { background-color: #06ad56; }
+        .ios-top-safe-padding {
+            padding-top: calc(env(safe-area-inset-top, 24px) + 32px) !important;
+        }
+        
+        .safe-padding-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
 
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .btn-wechat {
+            background-color: #07c160;
+            color: #ffffff;
+            transition: background-color 0.2s;
+        }
+        .btn-wechat:active {
+            background-color: #06ad56;
+        }
 
-        .bubble-left::before { content: ''; position: absolute; left: -5px; top: 12px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-right: 5px solid #ffffff; }
-        .bubble-right::before { content: ''; position: absolute; right: -5px; top: 12px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 5px solid #95ec69; }
-        .bubble-left-rp::before { border-right-color: #f35543; }
-        .bubble-right-rp::before { border-left-color: #f35543; }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
 
-        .fade-in { animation: fadeIn 0.2s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        video { object-fit: cover; background-color: #1a1a1a; }
+        /* 气泡指针 */
+        .bubble-left::before {
+            content: '';
+            position: absolute;
+            left: -5px;
+            top: 12px;
+            width: 0;
+            height: 0;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-right: 5px solid #ffffff;
+        }
+        .bubble-right::before {
+            content: '';
+            position: absolute;
+            right: -5px;
+            top: 12px;
+            width: 0;
+            height: 0;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-left: 5px solid #95ec69;
+        }
+        .bubble-left-rp::before {
+            border-right-color: #f35543;
+        }
+        .bubble-right-rp::before {
+            border-left-color: #f35543;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.2s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        video {
+            object-fit: cover;
+            background-color: #1a1a1a;
+        }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden select-none">
+<body class="flex flex-col h-screen overflow-hidden select-none" style="height: calc(var(--vh, 1vh) * 100)">
 
+    <!-- 全局防死锁云初始化加载层 -->
     <div id="loading-layer" class="fixed inset-0 bg-[#ededed] z-[2000] flex flex-col items-center justify-center space-y-4">
         <div class="relative w-12 h-12">
             <div class="absolute inset-0 rounded-full border-4 border-[#07c160]/20"></div>
@@ -55,12 +114,13 @@
         <p class="text-sm font-bold text-gray-500 tracking-wide">正在连入 AndrewChat 全球自愈通道...</p>
     </div>
 
+    <!-- 顶端自适应消息弹窗 -->
     <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 px-4 py-2.5 bg-gray-900/95 text-white text-xs rounded-full opacity-0 pointer-events-none transition-all duration-300 z-[1000] shadow-2xl flex items-center space-x-2">
         <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
         <span id="toast-text">通知消息</span>
     </div>
 
-    <!-- 登录模块 -->
+    <!-- 1. 登录与注册控制面板 -->
     <div id="view-login" class="fixed inset-0 bg-[#ededed] flex flex-col justify-between items-center px-10 py-16 z-[100] ios-top-safe-padding safe-padding-bottom">
         <div class="flex-grow flex flex-col items-center justify-center w-full max-w-sm">
             <div class="w-24 h-24 bg-[#07c160] rounded-[20px] flex items-center justify-center shadow-md mb-6 animate-pulse">
@@ -88,14 +148,15 @@
         <div class="text-xs text-gray-400">使用即代表您已同意《服务条款与隐私协议》</div>
     </div>
 
-    <!-- 主界面模块 -->
-    <div id="view-main" class="hidden flex-col h-screen overflow-hidden bg-[#f7f7f7]">
+    <!-- 2. 主界面模块 -->
+    <div id="view-main" class="hidden flex-col h-full overflow-hidden bg-[#f7f7f7]">
+        <!-- 头部导航栏 -->
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex justify-between items-end ios-top-safe-padding relative z-40 min-h-[96px]">
             <div class="flex flex-col">
-                <span id="network-badge" class="text-[9px] font-bold text-gray-400 tracking-wider uppercase mb-1 flex items-center">
-                    <span class="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-1 animate-pulse"></span>
-                    自愈多设备同步
-                </span>
+                <button onclick="toggleDebugConsole()" class="text-[9px] font-bold text-[#07c160] tracking-wider uppercase mb-1 flex items-center bg-[#07c160]/10 px-2 py-0.5 rounded-full border border-[#07c160]/20 active:scale-95 transition-all">
+                    <span class="w-1.5 h-1.5 bg-[#07c160] rounded-full mr-1 animate-pulse"></span>
+                    点击打开诊断调试台
+                </button>
                 <h2 id="main-title" class="text-lg font-bold text-[#191919] pb-1">微信</h2>
             </div>
             
@@ -247,10 +308,9 @@
         </div>
     </div>
 
-    <!-- 5. 跨端音视频通话面板 (彻底修复 iOS/Android 黑屏 Bug) -->
+    <!-- 5. 跨端音视频通话面板 (移除 hidden 强制常态激活) -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding animate-fade-in">
-        
-        <!-- 重点修复 1：移除 display:none (hidden) 属性，改用 opacity 控制，防止 iOS/安卓强行拒绝对隐藏元素解码 -->
+        <!-- iOS/Android 兼容占位视频层（移除了 hidden，使用透明度与指针穿透，确保其保持激活状态） -->
         <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-0 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline></video>
         
         <div id="simulated-video-bg" class="absolute inset-0 bg-gradient-to-b from-[#1c2229] to-[#0d1115] flex flex-col items-center justify-center z-10 transition-opacity duration-500">
@@ -258,7 +318,7 @@
                 <span class="text-5xl relative z-20">👤</span>
                 <span class="absolute inset-0 bg-emerald-500/10 rounded-full animate-ping z-10"></span>
             </div>
-            <p id="rtc-sub-status" class="text-xs text-gray-400 font-bold select-none tracking-wider">穿透网络防火墙中 (STUN)...</p>
+            <p id="rtc-sub-status" class="text-xs text-gray-400 font-bold select-none tracking-wider">正在交换媒体安全信令...</p>
         </div>
         
         <video id="local-video" class="absolute right-4 top-24 w-28 h-40 rounded-lg border border-white/20 z-50 shadow-2xl" autoplay playsinline muted></video>
@@ -266,6 +326,7 @@
         <div class="relative z-40 text-center space-y-2 mt-12">
             <h2 id="call-user-name" class="text-2xl font-bold">呼叫中...</h2>
             <p id="call-status" class="text-sm text-gray-300">正在等待对方接听</p>
+            <button onclick="toggleDebugConsole()" class="mx-auto mt-2 text-[10px] bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1 rounded-full text-emerald-400">打开通话诊断</button>
         </div>
 
         <div class="relative z-40 flex justify-center space-x-12 mb-10">
@@ -278,7 +339,7 @@
         </div>
     </div>
 
-    <!-- 朋友圈 -->
+    <!-- 微信朋友圈 -->
     <div id="view-moments" class="hidden fixed inset-0 bg-[#f7f7f7] flex flex-col z-[90] safe-padding-bottom">
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex items-end justify-between ios-top-safe-padding min-h-[84px]">
             <button onclick="closeMoments()" class="text-gray-700 p-1 pb-1">
@@ -290,7 +351,7 @@
         <div id="moments-container" class="flex-grow overflow-y-auto p-4 space-y-4 no-scrollbar"></div>
     </div>
 
-    <!-- 红包弹出窗 -->
+    <!-- 红包领取弹出窗 -->
     <div id="modal-redpacket" class="hidden fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-6">
         <div class="relative w-full max-w-xs bg-red-600 rounded-2xl p-6 flex flex-col items-center justify-between space-y-8 shadow-2xl overflow-hidden fade-in">
             <div class="absolute -top-12 left-0 right-0 h-40 bg-red-700 rounded-b-full"></div>
@@ -305,7 +366,41 @@
         </div>
     </div>
 
-    <!-- 音效引擎 -->
+    <!-- 微信高真诊断控制台抽屉 (Diagnostic Console) -->
+    <div id="diagnostic-console" class="hidden fixed inset-x-0 bottom-0 bg-gray-900/95 text-white z-[3000] flex flex-col rounded-t-2xl shadow-2xl transition-all duration-300 h-2/3 border-t border-emerald-500/30">
+        <header class="px-4 py-3 bg-gray-800 border-b border-gray-700 flex justify-between items-center rounded-t-2xl">
+            <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping"></span>
+                <span class="font-bold text-xs">AndrewChat 极智信道诊断调试控制台</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="testLocalWebRTCCapability()" class="px-3 py-1 bg-emerald-500 text-xs font-bold rounded-lg hover:bg-emerald-600">穿透自测</button>
+                <button onclick="copyDiagnosticLogs()" class="px-3 py-1 bg-sky-500 text-xs font-bold rounded-lg hover:bg-sky-600">一键复制日志</button>
+                <button onclick="toggleDebugConsole()" class="text-gray-400 hover:text-white p-1 text-sm font-bold">关闭</button>
+            </div>
+        </header>
+        <div class="flex-grow overflow-y-auto p-4 space-y-4 text-xs font-mono no-scrollbar">
+            <!-- 运行状态大盘 -->
+            <div class="grid grid-cols-2 gap-2 bg-gray-800/80 p-3 rounded-xl border border-gray-700">
+                <div><span class="text-gray-400">Signaling State:</span> <span id="diag-signaling" class="text-yellow-300">NULL</span></div>
+                <div><span class="text-gray-400">ICE Connection:</span> <span id="diag-ice-conn" class="text-yellow-300">NULL</span></div>
+                <div><span class="text-gray-400">ICE Gathering:</span> <span id="diag-ice-gather" class="text-yellow-300">NULL</span></div>
+                <div><span class="text-gray-400">Connection State:</span> <span id="diag-connection" class="text-yellow-300">NULL</span></div>
+                <div class="col-span-2"><span class="text-gray-400">Local Stream:</span> <span id="diag-local-stream" class="text-red-400">Not Captured</span></div>
+                <div class="col-span-2"><span class="text-gray-400">Remote Stream:</span> <span id="diag-remote-stream" class="text-red-400">Not Subscribed</span></div>
+            </div>
+
+            <!-- 控制台日志 -->
+            <div class="space-y-1">
+                <h4 class="text-gray-400 font-bold text-[10px] border-b border-gray-800 pb-1">实时控制台消息流</h4>
+                <div id="debug-log-console" class="bg-black/40 p-3 rounded-lg h-44 overflow-y-auto text-[10px] text-gray-300 space-y-1 leading-relaxed">
+                    暂无日志输出，应用正在平稳运行...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示音合成器 -->
     <script>
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playAudio(type) {
@@ -343,6 +438,78 @@
         }
     </script>
 
+    <!-- 诊断调试台底座 -->
+    <script>
+        window.debugLogs = [];
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addDebugLog('LOG', args.join(' '));
+        };
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addDebugLog('ERROR', args.join(' '));
+        };
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addDebugLog('WARN', args.join(' '));
+        };
+
+        function addDebugLog(level, text) {
+            window.debugLogs.push(`[${new Date().toLocaleTimeString()}] [${level}] ${text}`);
+            if (window.debugLogs.length > 100) window.debugLogs.shift();
+            const el = document.getElementById('debug-log-console');
+            if (el) {
+                el.innerText = window.debugLogs.join('\n');
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+
+        function toggleDebugConsole() {
+            const drawer = document.getElementById('diagnostic-console');
+            drawer.classList.toggle('hidden');
+        }
+
+        function copyDiagnosticLogs() {
+            const logsText = window.debugLogs.join('\n');
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = logsText;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            showToast('已复制调试控制台全部日志，请发给我协助定位！');
+        }
+
+        async function testLocalWebRTCCapability() {
+            console.log("=== 发起网络 NAT STUN/TURN 本地通透性自测 ===");
+            try {
+                const testPc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.miwifi.com:3478' },
+                        { urls: 'stun:stun.chat.bilibili.com:3478' },
+                        { urls: 'stun:stun.qq.com:3478' }
+                    ]
+                });
+                testPc.createDataChannel("diagnostic-test-pipe");
+                testPc.onicecandidate = (e) => {
+                    if (e.candidate) {
+                        console.log(`[穿透自测] 产生网络候选坐标: Type=${e.candidate.type} | Protocol=${e.candidate.protocol} | Addr=${e.candidate.address}:${e.candidate.port}`);
+                    } else {
+                        console.log("=== 穿透自测完成，候选端口搜集结束 ===");
+                    }
+                };
+                const offer = await testPc.createOffer();
+                await testPc.setLocalDescription(offer);
+            } catch (err) {
+                console.error("穿透能力自测异常失败:", err);
+            }
+        }
+    </script>
+
     <!-- 安全数据库存储层 -->
     <script>
         const SafeStorage = {
@@ -376,20 +543,9 @@
         let pc = null; 
         let callStartTime = null; 
         let rtcNegotiationTimer = null; 
-        let iceCandidatesQueue = []; // 【核心修正：安全保护所有到达的 ICE 包】
+        let iceCandidatesQueue = []; 
 
         const chatChannel = new BroadcastChannel('andrew_local_total_bridge');
-
-        function showToast(text) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-text').innerText = text;
-            toast.classList.remove('opacity-0');
-            toast.classList.add('opacity-100');
-            setTimeout(() => {
-                toast.classList.remove('opacity-100');
-                toast.classList.add('opacity-0');
-            }, 3000);
-        }
 
         function adjustViewportHeight() {
             const vh = window.innerHeight * 0.01;
@@ -516,6 +672,13 @@
                         const rawData = JSON.parse(line);
                         if (rawData.event === 'message') {
                             const parsed = JSON.parse(rawData.message);
+                            
+                            // 【核心 Bug 修复 1：过滤历史通话旧信令】
+                            // 必须完全过滤掉历史中的任何呼叫/协商指令，否则在开机拉历史包时，双方信令状态机会瞬间崩溃
+                            if (['VIDEO_CALL_OFFER', 'VIDEO_CALL_ACCEPT', 'VIDEO_CALL_REJECT', 'RTC_SDP_OFFER', 'RTC_SDP_ANSWER', 'RTC_ICE_CANDIDATE'].includes(parsed.type)) {
+                                console.log(`[信令网关] 成功拦截并过滤 12h 历史通话旧信令: ${parsed.type}`);
+                                return; 
+                            }
                             handleMessageBridge(parsed.type, parsed.payload);
                         }
                     } catch(e) {}
@@ -816,228 +979,6 @@
             document.getElementById('modal-redpacket').classList.remove('hidden');
         }
 
-        function openRedPacketPhysics() {
-            document.getElementById('rp-open-btn').style.transform = "rotateY(360deg)";
-            setTimeout(() => {
-                const chats = DB.getChats(); const packetMsg = chats.find(c => c.redPacket && c.redPacket.id === currentOpeningRedPacketId);
-                if (packetMsg && !packetMsg.redPacket.isClaimed) {
-                    const amount = packetMsg.redPacket.amount; packetMsg.redPacket.isClaimed = true; DB.saveChats(chats);
-                    currentUser.balance += amount; const users = DB.getUsers(); users[currentUser.phone] = currentUser; DB.saveUsers(users);
-                    document.getElementById('my-balance').innerText = `¥${currentUser.balance.toFixed(2)}`;
-                    playAudio('coin'); showToast(`领取成功！入账 ¥${amount.toFixed(2)}`);
-                    document.getElementById('modal-redpacket').classList.add('hidden'); openChatDetailWindow(activeChatPhone);
-                    sendCloudPayload('NEW_CHAT_MESSAGE', { from: currentUser.phone, to: activeChatPhone, content: `🧧 领取了您的红包，入账 ¥${amount.toFixed(2)}`, redPacket: null, isCallRecord: false, timestamp: Date.now() });
-                }
-            }, 400);
-        }
-
-        function logVideoCallRecord(duration, isInitiator) {
-            let logContent = "";
-            if (duration > 0) {
-                const min = Math.floor(duration / 60).toString().padStart(2, '0');
-                const sec = (duration % 60).toString().padStart(2, '0');
-                logContent = `视频通话已结束 (时长 ${min}:${sec})`;
-            } else {
-                logContent = isInitiator ? "已取消" : "已挂断";
-            }
-            const newMsg = { from: currentUser.phone, to: activeChatPhone, content: logContent, redPacket: null, isCallRecord: true, timestamp: Date.now() };
-            const chats = DB.getChats(); chats.push(newMsg); DB.saveChats(chats);
-            if (activeChatPhone) appendMessageBubble(currentUser.phone, logContent, true, null, true);
-            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg); renderChats();
-        }
-
-        // =======================================================
-        // 【终极重构：防 ICE 清空 Bug + iOS/Android 强制媒体装载】
-        // =======================================================
-        async function initiateVideoCall() {
-            iceCandidatesQueue = []; // 新通话前彻底清空残留的候选缓存
-            const friendName = DB.getUsers()[activeChatPhone]?.name || "好友";
-            
-            document.getElementById('view-call').classList.remove('hidden');
-            document.getElementById('call-user-name').innerText = friendName;
-            document.getElementById('call-status').innerText = '正在等待对方接听';
-            document.getElementById('btn-accept-call').classList.add('hidden');
-            document.getElementById('simulated-video-bg').classList.remove('hidden');
-            document.getElementById('rtc-sub-status').innerText = "等待建立 P2P 隧道...";
-            
-            // 在同一个点击手势中，强行要求 iOS / 安卓内核发放视频和音频解码凭证
-            const remoteVideo = document.getElementById('remote-video');
-            remoteVideo.play().catch(()=>{});
-
-            callStartTime = null; 
-            await startLocalStream();
-            sendCloudPayload('VIDEO_CALL_OFFER', { from: currentUser.phone, fromName: currentUser.name, to: activeChatPhone });
-        }
-
-        async function acceptVideoCallIncoming() {
-            iceCandidatesQueue = []; // 清空接收端旧数据，确保 100% 干净的握手
-            document.getElementById('btn-accept-call').classList.add('hidden');
-            document.getElementById('call-status').innerText = '正在接通音视频...';
-            
-            callStartTime = Date.now(); 
-
-            const remoteVideo = document.getElementById('remote-video');
-            remoteVideo.play().catch(()=>{});
-
-            await startLocalStream();
-            sendCloudPayload('VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
-        }
-
-        async function startLocalStream() {
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                const localVideo = document.getElementById('local-video');
-                localVideo.srcObject = localStream;
-                localVideo.muted = true;
-                await localVideo.play();
-            } catch (err) {
-                console.warn('获取摄像头失败:', err);
-                document.getElementById('call-status').innerText = '媒体许可受阻 (仅支持文字通信)';
-            }
-        }
-
-        function initiateRTCPeerConnection(isOfferer) {
-            // 注意：这里绝对不可以清空 iceCandidatesQueue！
-            if (pc) pc.close();
-            document.getElementById('rtc-sub-status').innerText = "穿透网络防火墙中 (STUN)...";
-
-            // 国内最强免费高可用 STUN 穿透服务器组，突破被墙导致的网络隔离
-            const configuration = {
-                iceServers: [
-                    { urls: 'stun:stun.miwifi.com:3478' },
-                    { urls: 'stun:stun.chat.bilibili.com:3478' },
-                    { urls: 'stun:stun.qq.com:3478' },
-                    { urls: 'stun:stun.l.google.com:19302' }
-                ]
-            };
-
-            pc = new RTCPeerConnection(configuration);
-
-            if (localStream) {
-                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            }
-
-            // 【原生态轨道流合并】解决移动端 srcObject 突然被切断的问题
-            pc.ontrack = (event) => {
-                const remoteVideo = document.getElementById('remote-video');
-                
-                if (event.streams && event.streams[0]) {
-                    remoteVideo.srcObject = event.streams[0];
-                } else {
-                    const stream = remoteVideo.srcObject || new MediaStream();
-                    stream.addTrack(event.track);
-                    remoteVideo.srcObject = stream;
-                }
-
-                // 完全移除了会导致流断裂的 load() 方法
-                // 通过透明度解除隐藏，确保 iOS 18/Android 14 在视口内完美渲染
-                remoteVideo.classList.remove('opacity-0', 'pointer-events-none');
-                
-                remoteVideo.play().then(() => {
-                    document.getElementById('simulated-video-bg').classList.add('hidden');
-                    document.getElementById('call-status').innerText = '加密高清通话中';
-                }).catch(err => {
-                    console.warn("由于极为严苛的静音自动播放限制，尝试静音唤醒", err);
-                    remoteVideo.muted = true;
-                    remoteVideo.play().catch(e => {});
-                });
-            };
-
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    sendCloudPayload('RTC_ICE_CANDIDATE', { from: currentUser.phone, to: activeChatPhone, candidate: event.candidate });
-                }
-            };
-
-            pc.oniceconnectionstatechange = () => {
-                if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-                    document.getElementById('call-status').innerText = '加密高清通话中';
-                } else if (pc.iceConnectionState === 'failed') {
-                    document.getElementById('call-status').innerText = '当前网络极严苛，降级中';
-                }
-            };
-
-            if (isOfferer) {
-                pc.createOffer().then(offer => {
-                    return pc.setLocalDescription(offer);
-                }).then(() => {
-                    sendCloudPayload('RTC_SDP_OFFER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription });
-                });
-            }
-        }
-
-        // 接收 A 端的 SDP Offer 包
-        async function handleRTCOffer(sdp) {
-            initiateRTCPeerConnection(false); 
-            try {
-                await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                sendCloudPayload('RTC_SDP_ANSWER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription });
-                
-                // 【核心修复】：Offer 接收完成，必须将 A 端提前丢过来的所有 ICE 安全取出并注入通道！
-                processIceQueue();
-            } catch (err) {}
-        }
-
-        // 接收 B 端返回的 SDP Answer 包
-        async function handleRTCAnswer(sdp) {
-            if (!pc) return;
-            try {
-                await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-                // 将 B 端提前丢过来的所有 ICE 取出并注入
-                processIceQueue();
-            } catch (err) {}
-        }
-
-        // 异步 ICE 包收容网关
-        async function handleIceCandidate(candidate) {
-            if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-                try {
-                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                } catch (e) {}
-            } else {
-                // 如果对方还没准备好接受 IP 坐标，将极其珍贵的坐标妥善安置在队列中
-                iceCandidatesQueue.push(candidate);
-            }
-        }
-
-        async function processIceQueue() {
-            while (iceCandidatesQueue.length > 0) {
-                const cand = iceCandidatesQueue.shift();
-                try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch (e) {}
-            }
-        }
-
-        function closeRTCPeerConnection() {
-            if (rtcNegotiationTimer) { clearTimeout(rtcNegotiationTimer); rtcNegotiationTimer = null; }
-            if (pc) { pc.close(); pc = null; }
-            iceCandidatesQueue = [];
-            const remoteVideo = document.getElementById('remote-video');
-            if (remoteVideo) {
-                remoteVideo.classList.add('opacity-0', 'pointer-events-none');
-                remoteVideo.srcObject = null;
-            }
-            document.getElementById('simulated-video-bg').classList.add('hidden');
-        }
-
-        function terminateVideoCall() {
-            sendCloudPayload('VIDEO_CALL_REJECT', { from: currentUser.phone, to: activeChatPhone });
-            document.getElementById('view-call').classList.add('hidden');
-            stopCameraStream();
-            closeRTCPeerConnection();
-
-            const duration = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
-            logVideoCallRecord(duration, true);
-        }
-
-        function stopCameraStream() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-        }
-
         // 朋友圈
         function openMoments() {
             document.getElementById('view-moments').classList.remove('hidden'); renderMoments();
@@ -1079,6 +1020,257 @@
 
         function toggleAddMenu() { document.getElementById('add-menu').classList.toggle('hidden'); }
         function handleLogout() { SafeStorage.set('andrew_logged_in_user_phone', ''); currentUser = null; document.getElementById('view-main').classList.add('hidden'); document.getElementById('view-login').classList.remove('hidden'); showToast('已安全退出当前账号'); }
+
+        function openRedPacketPhysics() {
+            document.getElementById('rp-open-btn').style.transform = "rotateY(360deg)";
+            setTimeout(() => {
+                const chats = DB.getChats(); const packetMsg = chats.find(c => c.redPacket && c.redPacket.id === currentOpeningRedPacketId);
+                if (packetMsg && !packetMsg.redPacket.isClaimed) {
+                    const amount = packetMsg.redPacket.amount; packetMsg.redPacket.isClaimed = true; DB.saveChats(chats);
+                    currentUser.balance += amount; const users = DB.getUsers(); users[currentUser.phone] = currentUser; DB.saveUsers(users);
+                    document.getElementById('my-balance').innerText = `¥${currentUser.balance.toFixed(2)}`;
+                    playAudio('coin'); showToast(`领取成功！入账 ¥${amount.toFixed(2)}`);
+                    document.getElementById('modal-redpacket').classList.add('hidden'); openChatDetailWindow(activeChatPhone);
+                    sendCloudPayload('NEW_CHAT_MESSAGE', { from: currentUser.phone, to: activeChatPhone, content: `🧧 领取了您的红包，入账 ¥${amount.toFixed(2)}`, redPacket: null, isCallRecord: false, timestamp: Date.now() });
+                }
+            }, 400);
+        }
+
+        function logVideoCallRecord(duration, isInitiator) {
+            let logContent = "";
+            if (duration > 0) {
+                const min = Math.floor(duration / 60).toString().padStart(2, '0');
+                const sec = (duration % 60).toString().padStart(2, '0');
+                logContent = `视频通话已结束 (时长 ${min}:${sec})`;
+            } else {
+                logContent = isInitiator ? "已取消" : "已挂断";
+            }
+            const newMsg = { from: currentUser.phone, to: activeChatPhone, content: logContent, redPacket: null, isCallRecord: true, timestamp: Date.now() };
+            const chats = DB.getChats(); chats.push(newMsg); DB.saveChats(chats);
+            if (activeChatPhone) appendMessageBubble(currentUser.phone, logContent, true, null, true);
+            sendCloudPayload('NEW_CHAT_MESSAGE', newMsg); renderChats();
+        }
+
+        // =======================================================
+        // 【终极重构：防 ICE 队列清空、状态机轮询、完美支持自愈】
+        // =======================================================
+        async function initiateVideoCall() {
+            iceCandidatesQueue = []; // 重置队列
+            const friendName = DB.getUsers()[activeChatPhone]?.name || "好友";
+            
+            document.getElementById('view-call').classList.remove('hidden');
+            document.getElementById('call-user-name').innerText = friendName;
+            document.getElementById('call-status').innerText = '正在等待对方接听';
+            document.getElementById('btn-accept-call').classList.add('hidden');
+            document.getElementById('simulated-video-bg').classList.remove('hidden');
+            document.getElementById('rtc-sub-status').innerText = "等待建立 P2P 隧道...";
+            
+            // 预授播放权 (iOS & Android)
+            const remoteVideo = document.getElementById('remote-video');
+            remoteVideo.play().catch(()=>{});
+
+            callStartTime = null; 
+            await startLocalStream();
+            sendCloudPayload('VIDEO_CALL_OFFER', { from: currentUser.phone, fromName: currentUser.name, to: activeChatPhone });
+        }
+
+        async function acceptVideoCallIncoming() {
+            iceCandidatesQueue = []; // 重置接收端旧信令，防止旧坐标干扰
+            document.getElementById('btn-accept-call').classList.add('hidden');
+            document.getElementById('call-status').innerText = '正在接通音视频...';
+            
+            callStartTime = Date.now(); 
+
+            const remoteVideo = document.getElementById('remote-video');
+            remoteVideo.play().catch(()=>{});
+
+            await startLocalStream();
+            sendCloudPayload('VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
+        }
+
+        async function startLocalStream() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const localVideo = document.getElementById('local-video');
+                localVideo.srcObject = localStream;
+                localVideo.muted = true;
+                await localVideo.play();
+                document.getElementById('diag-local-stream').innerText = "Captured Successfully";
+                document.getElementById('diag-local-stream').className = "text-emerald-400";
+            } catch (err) {
+                console.warn('获取摄像头失败:', err);
+                document.getElementById('call-status').innerText = '媒体许可受阻 (仅支持降级语音通信)';
+            }
+        }
+
+        function initiateRTCPeerConnection(isOfferer) {
+            // 【核心 Bug 修复】保留 iceCandidatesQueue 队列！之前在这里被置空从而销毁了提前抵达的所有公网坐标。
+            if (pc) pc.close();
+            document.getElementById('rtc-sub-status').innerText = "网络穿透与地址搜集启动中 (STUN)...";
+
+            // 国内最强免费高可用 STUN 穿透服务器组
+            const configuration = {
+                iceServers: [
+                    { urls: 'stun:stun.miwifi.com:3478' },
+                    { urls: 'stun:stun.chat.bilibili.com:3478' },
+                    { urls: 'stun:stun.qq.com:3478' },
+                    { urls: 'stun:stun.l.google.com:19302' }
+                ]
+            };
+
+            pc = new RTCPeerConnection(configuration);
+
+            // 监听各种底层状态并推送至诊断台
+            pc.onconnectionstatechange = () => {
+                document.getElementById('diag-connection').innerText = pc.connectionState;
+                console.log(`[诊断台] 核心 ConnectionState 变化为: ${pc.connectionState}`);
+            };
+            pc.oniceconnectionstatechange = () => {
+                document.getElementById('diag-ice-conn').innerText = pc.iceConnectionState;
+                console.log(`[诊断台] ICE ConnectionState 变化为: ${pc.iceConnectionState}`);
+                if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                    document.getElementById('call-status').innerText = '加密高清通话中';
+                } else if (pc.iceConnectionState === 'failed') {
+                    document.getElementById('call-status').innerText = 'P2P 隧道穿透失败';
+                }
+            };
+            pc.onicegatheringstatechange = () => {
+                document.getElementById('diag-ice-gather').innerText = pc.iceGatheringState;
+                console.log(`[诊断台] ICE GatheringState 变化为: ${pc.iceGatheringState}`);
+            };
+            pc.onsignalingstatechange = () => {
+                document.getElementById('diag-signaling').innerText = pc.signalingState;
+                console.log(`[诊断台] 信令状态 SignalingState 变化为: ${pc.signalingState}`);
+            };
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            }
+
+            // 完美的跨端媒体轨道装配
+            pc.ontrack = (event) => {
+                console.log("[WebRTC] 对方音视频轨道已成功接入，进行流装配");
+                const remoteVideo = document.getElementById('remote-video');
+                
+                if (event.streams && event.streams[0]) {
+                    remoteVideo.srcObject = event.streams[0];
+                } else {
+                    const stream = remoteVideo.srcObject || new MediaStream();
+                    stream.addTrack(event.track);
+                    remoteVideo.srcObject = stream;
+                }
+
+                // 移除 hidden 和 opacity-0 障碍
+                remoteVideo.classList.remove('opacity-0', 'pointer-events-none');
+                
+                remoteVideo.play().then(() => {
+                    document.getElementById('simulated-video-bg').classList.add('hidden');
+                    document.getElementById('call-status').innerText = '加密高清视频通话中';
+                    document.getElementById('diag-remote-stream').innerText = "Subscribed Stream Active";
+                    document.getElementById('diag-remote-stream').className = "text-emerald-400";
+                }).catch(err => {
+                    console.warn("[浏览器限制] 自动播放被阻拦，静音后重新唤醒...", err);
+                    remoteVideo.muted = true;
+                    remoteVideo.play().catch(()=>{});
+                });
+            };
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendCloudPayload('RTC_ICE_CANDIDATE', { from: currentUser.phone, to: activeChatPhone, candidate: event.candidate });
+                }
+            };
+
+            if (isOfferer) {
+                pc.createOffer().then(offer => {
+                    return pc.setLocalDescription(offer);
+                }).then(() => {
+                    sendCloudPayload('RTC_SDP_OFFER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription });
+                });
+            }
+        }
+
+        // 接收 A 端的 SDP Offer 包
+        async function handleRTCOffer(sdp) {
+            initiateRTCPeerConnection(false); // B 初始化 RTCPeerConnection
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                sendCloudPayload('RTC_SDP_ANSWER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription });
+                
+                // 【核心修复】：Offer 接收和应答完成，将积压在队列中的所有公网坐标注入连接！
+                processIceQueue();
+            } catch (err) {
+                console.error("处理对端 Offer 发生致命崩溃:", err);
+            }
+        }
+
+        // 接收 B 端返回的 SDP Answer 包
+        async function handleRTCAnswer(sdp) {
+            if (!pc) return;
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                // 将积压在队列中的所有公网坐标注入连接！
+                processIceQueue();
+            } catch (err) {
+                console.error("设置对端 Answer 发生致命崩溃:", err);
+            }
+        }
+
+        // 异步 ICE 坐标接收网关
+        async function handleIceCandidate(candidate) {
+            if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+                try {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {}
+            } else {
+                // 如果对方还没准备好，坐标妥善暂存在临时队列中，绝不丢弃
+                iceCandidatesQueue.push(candidate);
+                console.log(`[诊断台] 接收到提前到达的对端 ICE 坐标，已压入暂存池。当前积压数: ${iceCandidatesQueue.length}`);
+            }
+        }
+
+        async function processIceQueue() {
+            console.log(`[诊断台] 开启注入积压的 ${iceCandidatesQueue.length} 个对端 ICE 坐标...`);
+            while (iceCandidatesQueue.length > 0) {
+                const cand = iceCandidatesQueue.shift();
+                try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch (e) {}
+            }
+        }
+
+        function closeRTCPeerConnection() {
+            if (rtcNegotiationTimer) { clearTimeout(rtcNegotiationTimer); rtcNegotiationTimer = null; }
+            if (pc) { pc.close(); pc = null; }
+            iceCandidatesQueue = [];
+            const remoteVideo = document.getElementById('remote-video');
+            if (remoteVideo) {
+                remoteVideo.classList.add('opacity-0', 'pointer-events-none');
+                remoteVideo.srcObject = null;
+            }
+            document.getElementById('simulated-video-bg').classList.add('hidden');
+            document.getElementById('diag-remote-stream').innerText = "Not Subscribed";
+            document.getElementById('diag-remote-stream').className = "text-red-400";
+        }
+
+        function terminateVideoCall() {
+            sendCloudPayload('VIDEO_CALL_REJECT', { from: currentUser.phone, to: activeChatPhone });
+            document.getElementById('view-call').classList.add('hidden');
+            stopCameraStream();
+            closeRTCPeerConnection();
+
+            const duration = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
+            logVideoCallRecord(duration, true);
+        }
+
+        function stopCameraStream() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            document.getElementById('diag-local-stream').innerText = "Not Captured";
+            document.getElementById('diag-local-stream').className = "text-red-400";
+        }
     </script>
 </body>
 </html>
