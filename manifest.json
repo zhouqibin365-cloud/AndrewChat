@@ -1,9 +1,10 @@
 {
-  "name": "AndrewChat 微信体验客户端",
+  "name": "AndrewChat 微信高真体验客户端",
   "short_name": "AndrewChat",
-  "description": "基于 WSS 全球共享信道的高品质移动微信 PWA 客户端，支持跨省跨网加好友验证与未读消息红点统计。",
+  "description": "基于 WSS 全球共享信道的高品质移动微信 PWA 客户端，支持跨设备同步、好友验证机制与实时视频流。",
   "start_url": "index.html",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#ededed",
   "theme_color": "#ededed",
   "scope": ".",
@@ -12,12 +13,16 @@
     {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/WeChat_logo.svg/512px-WeChat_logo.svg.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/WeChat_logo.svg/512px-WeChat_logo.svg.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "apple-mobile-web-app-capable": "yes",
+  "apple-mobile-web-app-status-bar-style": "default"
 }
