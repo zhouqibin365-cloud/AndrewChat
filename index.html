@@ -308,9 +308,9 @@
         </div>
     </div>
 
-    <!-- 5. 跨端音视频通话面板 (移除 hidden 强制常态激活) -->
+    <!-- 5. 跨端音视频通话面板 (自愈与穿透强化) -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding animate-fade-in">
-        <!-- iOS/Android 兼容占位视频层（移除了 hidden，使用透明度与指针穿透，确保其保持激活状态） -->
+        <!-- iOS/Android 兼容占位视频层 (通过 opacity 隐藏, 保持解码状态，解决黑屏 Bug) -->
         <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-0 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline></video>
         
         <div id="simulated-video-bg" class="absolute inset-0 bg-gradient-to-b from-[#1c2229] to-[#0d1115] flex flex-col items-center justify-center z-10 transition-opacity duration-500">
@@ -318,7 +318,7 @@
                 <span class="text-5xl relative z-20">👤</span>
                 <span class="absolute inset-0 bg-emerald-500/10 rounded-full animate-ping z-10"></span>
             </div>
-            <p id="rtc-sub-status" class="text-xs text-gray-400 font-bold select-none tracking-wider">正在交换媒体安全信令...</p>
+            <p id="rtc-sub-status" class="text-xs text-gray-400 font-bold select-none tracking-wider">穿透网络防火墙中 (STUN)...</p>
         </div>
         
         <video id="local-video" class="absolute right-4 top-24 w-28 h-40 rounded-lg border border-white/20 z-50 shadow-2xl" autoplay playsinline muted></video>
@@ -326,7 +326,6 @@
         <div class="relative z-40 text-center space-y-2 mt-12">
             <h2 id="call-user-name" class="text-2xl font-bold">呼叫中...</h2>
             <p id="call-status" class="text-sm text-gray-300">正在等待对方接听</p>
-            <button onclick="toggleDebugConsole()" class="mx-auto mt-2 text-[10px] bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1 rounded-full text-emerald-400">打开通话诊断</button>
         </div>
 
         <div class="relative z-40 flex justify-center space-x-12 mb-10">
@@ -339,7 +338,7 @@
         </div>
     </div>
 
-    <!-- 微信朋友圈 -->
+    <!-- 朋友圈 -->
     <div id="view-moments" class="hidden fixed inset-0 bg-[#f7f7f7] flex flex-col z-[90] safe-padding-bottom">
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex items-end justify-between ios-top-safe-padding min-h-[84px]">
             <button onclick="closeMoments()" class="text-gray-700 p-1 pb-1">
@@ -351,7 +350,7 @@
         <div id="moments-container" class="flex-grow overflow-y-auto p-4 space-y-4 no-scrollbar"></div>
     </div>
 
-    <!-- 红包领取弹出窗 -->
+    <!-- 红包弹出窗 -->
     <div id="modal-redpacket" class="hidden fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-6">
         <div class="relative w-full max-w-xs bg-red-600 rounded-2xl p-6 flex flex-col items-center justify-between space-y-8 shadow-2xl overflow-hidden fade-in">
             <div class="absolute -top-12 left-0 right-0 h-40 bg-red-700 rounded-b-full"></div>
@@ -400,46 +399,11 @@
         </div>
     </div>
 
-    <!-- 提示音合成器 -->
+    <!-- 微信核心脚本整合大底座 (防沙箱阻断与高自愈信道) -->
     <script>
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playAudio(type) {
-            try {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const now = audioCtx.currentTime;
-                if (type === 'message') {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.frequency.setValueAtTime(800, now);
-                    gain.gain.setValueAtTime(0.3, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                    osc.start(); osc.stop(now + 0.15);
-                } else if (type === 'coin') {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.frequency.setValueAtTime(1500, now);
-                    osc.frequency.exponentialRampToValueAtTime(3000, now + 0.3);
-                    gain.gain.setValueAtTime(0.4, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                    osc.start(); osc.stop(now + 0.3);
-                } else if (type === 'ring') {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.frequency.setValueAtTime(600, now);
-                    osc.frequency.linearRampToValueAtTime(800, now + 0.4);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-                    osc.start(); osc.stop(now + 0.5);
-                }
-            } catch (err) {}
-        }
-    </script>
-
-    <!-- 诊断调试台底座 -->
-    <script>
+        // ----------------------------------------------------
+        // A. 微信开发者诊断日志工具配置 (置顶定义避免 undefined)
+        // ----------------------------------------------------
         window.debugLogs = [];
         const originalLog = console.log;
         const originalError = console.error;
@@ -470,7 +434,7 @@
 
         function toggleDebugConsole() {
             const drawer = document.getElementById('diagnostic-console');
-            drawer.classList.toggle('hidden');
+            if (drawer) drawer.classList.toggle('hidden');
         }
 
         function copyDiagnosticLogs() {
@@ -481,11 +445,11 @@
             dummy.select();
             document.execCommand('copy');
             document.body.removeChild(dummy);
-            showToast('已复制调试控制台全部日志，请发给我协助定位！');
+            showToast('已复制诊断全部日志，请发给开发者协助定位！');
         }
 
         async function testLocalWebRTCCapability() {
-            console.log("=== 发起网络 NAT STUN/TURN 本地通透性自测 ===");
+            console.log("=== 发起网络 NAT STUN 穿透本地连通性自测 ===");
             try {
                 const testPc = new RTCPeerConnection({
                     iceServers: [
@@ -497,7 +461,7 @@
                 testPc.createDataChannel("diagnostic-test-pipe");
                 testPc.onicecandidate = (e) => {
                     if (e.candidate) {
-                        console.log(`[穿透自测] 产生网络候选坐标: Type=${e.candidate.type} | Protocol=${e.candidate.protocol} | Addr=${e.candidate.address}:${e.candidate.port}`);
+                        console.log(`[穿透自测] 成功搜集到候选坐标: Type=${e.candidate.type} | Protocol=${e.candidate.protocol} | Addr=${e.candidate.address}:${e.candidate.port}`);
                     } else {
                         console.log("=== 穿透自测完成，候选端口搜集结束 ===");
                     }
@@ -505,35 +469,97 @@
                 const offer = await testPc.createOffer();
                 await testPc.setLocalDescription(offer);
             } catch (err) {
-                console.error("穿透能力自测异常失败:", err);
+                console.error("穿透自测发生底层异常:", err);
             }
         }
-    </script>
 
-    <!-- 安全数据库存储层 -->
-    <script>
+        // ----------------------------------------------------
+        // B. 惰性单例 Web Audio 上下文 (彻底解决 iOS/沙箱启动崩溃)
+        // ----------------------------------------------------
+        let audioCtxInstance = null;
+        function getAudioContext() {
+            if (!audioCtxInstance) {
+                try {
+                    audioCtxInstance = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) {
+                    console.warn("当前环境阻断或不支持 Web Audio API, 音效已静音自愈:", e);
+                }
+            }
+            return audioCtxInstance;
+        }
+
+        function playAudio(type) {
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                if (ctx.state === 'suspended') ctx.resume();
+                const now = ctx.currentTime;
+                if (type === 'message') {
+                    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.frequency.setValueAtTime(800, now); gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(); osc.stop(now + 0.15);
+                } else if (type === 'coin') {
+                    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.frequency.setValueAtTime(1500, now); osc.frequency.exponentialRampToValueAtTime(3000, now + 0.3);
+                    gain.gain.setValueAtTime(0.4, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(); osc.stop(now + 0.3);
+                } else if (type === 'ring') {
+                    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(800, now + 0.4);
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(); osc.stop(now + 0.5);
+                }
+            } catch (err) {}
+        }
+
+        // ----------------------------------------------------
+        // C. 沙箱自愈本地存储自适应包装层 (防 DOM Exception 18)
+        // ----------------------------------------------------
         const SafeStorage = {
             memoryStore: {},
-            get(key) { try { return localStorage.getItem(key); } catch(e) { return this.memoryStore[key] || null; } },
-            set(key, val) { try { localStorage.setItem(key, val); } catch(e) { this.memoryStore[key] = val; } }
+            get(key) {
+                try { return localStorage.getItem(key); } catch(e) { return this.memoryStore[key] || null; }
+            },
+            set(key, val) {
+                try { localStorage.setItem(key, val); } catch(e) { this.memoryStore[key] = val; }
+            }
         };
 
         const DB = {
-            getUsers: () => JSON.parse(SafeStorage.get('andrew_users') || '{}'),
+            getUsers: () => { try { return JSON.parse(SafeStorage.get('andrew_users') || '{}'); } catch(e) { return {}; } },
             saveUsers: (users) => SafeStorage.set('andrew_users', JSON.stringify(users)),
-            getChats: () => JSON.parse(SafeStorage.get('andrew_chats') || '[]'),
+            getChats: () => { try { return JSON.parse(SafeStorage.get('andrew_chats') || '[]'); } catch(e) { return []; } },
             saveChats: (chats) => SafeStorage.set('andrew_chats', JSON.stringify(chats)),
-            getMoments: () => JSON.parse(SafeStorage.get('andrew_moments') || '[]'),
+            getMoments: () => { try { return JSON.parse(SafeStorage.get('andrew_moments') || '[]'); } catch(e) { return []; } },
             saveMoments: (moments) => SafeStorage.set('andrew_moments', JSON.stringify(moments)),
-            getRequests: () => JSON.parse(SafeStorage.get('andrew_friend_requests') || '[]'),
+            getRequests: () => { try { return JSON.parse(SafeStorage.get('andrew_friend_requests') || '[]'); } catch(e) { return []; } },
             saveRequests: (requests) => SafeStorage.set('andrew_friend_requests', JSON.stringify(requests)),
-            getUnreadCounts: () => JSON.parse(SafeStorage.get('andrew_unread_counts') || '{}'),
+            getUnreadCounts: () => { try { return JSON.parse(SafeStorage.get('andrew_unread_counts') || '{}'); } catch(e) { return {}; } },
             saveUnreadCounts: (counts) => SafeStorage.set('andrew_unread_counts', JSON.stringify(counts))
         };
-    </script>
 
-    <!-- 核心业务与媒体通信引擎 -->
-    <script>
+        // ----------------------------------------------------
+        // D. 惰性 BroadcastChannel 初始化 (防止沙箱报错阻塞登录)
+        // ----------------------------------------------------
+        let chatChannel = null;
+        try {
+            chatChannel = new BroadcastChannel('andrew_local_total_bridge');
+        } catch(e) {
+            console.warn("当前沙箱环境阻断了 BroadcastChannel API, 自动启用内存自愈总线:", e);
+            chatChannel = {
+                postMessage() {},
+                addEventListener() {},
+                removeEventListener() {}
+            };
+        }
+
+        // ----------------------------------------------------
+        // E. 微信核心业务控制器
+        // ----------------------------------------------------
         let currentUser = null;
         let activeChatPhone = null;
         let localStream = null;
@@ -543,9 +569,7 @@
         let pc = null; 
         let callStartTime = null; 
         let rtcNegotiationTimer = null; 
-        let iceCandidatesQueue = []; 
-
-        const chatChannel = new BroadcastChannel('andrew_local_total_bridge');
+        let iceCandidatesQueue = []; // 保管所有提前到达的对端 ICE 公网坐标
 
         function adjustViewportHeight() {
             const vh = window.innerHeight * 0.01;
@@ -557,6 +581,7 @@
             window.addEventListener('resize', adjustViewportHeight);
             window.addEventListener('orientationchange', adjustViewportHeight);
 
+            // 1秒后强制解锁加载遮罩并尝试自动登录
             setTimeout(() => {
                 const loader = document.getElementById('loading-layer');
                 if (loader && !loader.classList.contains('hidden')) {
@@ -574,13 +599,16 @@
                 }
             }, 1000);
 
-            chatChannel.onmessage = (event) => {
+            // 监听本地同机广播消息
+            chatChannel.addEventListener('message', (event) => {
                 const { type, payload } = event.data;
                 handleMessageBridge(type, payload);
-            };
+            });
 
+            // 触摸解锁音频
             document.addEventListener('click', () => {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const ctx = getAudioContext();
+                if (ctx && ctx.state === 'suspended') ctx.resume();
             }, { once: true });
         });
 
@@ -672,11 +700,9 @@
                         const rawData = JSON.parse(line);
                         if (rawData.event === 'message') {
                             const parsed = JSON.parse(rawData.message);
-                            
-                            // 【核心 Bug 修复 1：过滤历史通话旧信令】
-                            // 必须完全过滤掉历史中的任何呼叫/协商指令，否则在开机拉历史包时，双方信令状态机会瞬间崩溃
+                            // 过滤掉历史通话的旧协商信令
                             if (['VIDEO_CALL_OFFER', 'VIDEO_CALL_ACCEPT', 'VIDEO_CALL_REJECT', 'RTC_SDP_OFFER', 'RTC_SDP_ANSWER', 'RTC_ICE_CANDIDATE'].includes(parsed.type)) {
-                                console.log(`[信令网关] 成功拦截并过滤 12h 历史通话旧信令: ${parsed.type}`);
+                                console.log(`[信令网关] 已过滤历史通话旧信令: ${parsed.type}`);
                                 return; 
                             }
                             handleMessageBridge(parsed.type, parsed.payload);
@@ -732,7 +758,6 @@
                     }
                 }
             }
-            // 收到视频通话请求
             else if (type === 'VIDEO_CALL_OFFER' && payload.to === currentUser.phone) {
                 playAudio('ring');
                 document.getElementById('view-call').classList.remove('hidden');
@@ -741,13 +766,12 @@
                 document.getElementById('btn-accept-call').classList.remove('hidden');
                 activeChatPhone = payload.from;
                 callStartTime = null; 
-                iceCandidatesQueue = []; // 初始化接收端内存队列
+                iceCandidatesQueue = []; 
             } 
-            // 对方同意接听，发起方开始 P2P 连接！
             else if (type === 'VIDEO_CALL_ACCEPT' && payload.to === currentUser.phone) {
                 document.getElementById('call-status').innerText = '正在建立端到端加密连接...';
                 callStartTime = Date.now();
-                initiateRTCPeerConnection(true); // A 发起 SDP Offer
+                initiateRTCPeerConnection(true); 
             } 
             else if (type === 'VIDEO_CALL_REJECT' && payload.to === currentUser.phone) {
                 document.getElementById('view-call').classList.add('hidden');
@@ -757,7 +781,6 @@
                 const duration = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
                 logVideoCallRecord(duration, false);
             }
-            // 处理 WebRTC 握手底层协议
             else if (type === 'RTC_SDP_OFFER' && payload.to === currentUser.phone) {
                 handleRTCOffer(payload.sdp);
             } else if (type === 'RTC_SDP_ANSWER' && payload.to === currentUser.phone) {
@@ -768,7 +791,8 @@
         }
 
         function loadMainDashboard() {
-            document.getElementById('loading-layer').classList.add('hidden');
+            const loader = document.getElementById('loading-layer');
+            if (loader) loader.classList.add('hidden');
             document.getElementById('view-login').classList.add('hidden');
             document.getElementById('view-main').classList.remove('hidden');
             document.getElementById('view-main').classList.add('flex');
@@ -979,48 +1003,6 @@
             document.getElementById('modal-redpacket').classList.remove('hidden');
         }
 
-        // 朋友圈
-        function openMoments() {
-            document.getElementById('view-moments').classList.remove('hidden'); renderMoments();
-        }
-        function closeMoments() { document.getElementById('view-moments').classList.add('hidden'); }
-
-        function renderMoments() {
-            const container = document.getElementById('moments-container'); container.innerHTML = '';
-            const moments = DB.getMoments(); const users = DB.getUsers();
-
-            if (moments.length === 0) { container.innerHTML = `<p class="text-center text-gray-400 mt-20 text-sm">暂无朋友圈动态</p>`; return; }
-            moments.forEach(m => {
-                const sender = users[m.author]; const senderName = sender ? sender.name : '未知朋友';
-                const card = document.createElement('div'); card.className = "bg-white rounded-[6px] p-4 shadow-sm border border-gray-100 flex space-x-3";
-                card.innerHTML = `<div class="w-10 h-10 rounded-[6px] bg-emerald-500 text-white font-black flex items-center justify-center text-lg uppercase shadow-sm">${senderName.charAt(0)}</div><div class="flex-grow"><h4 class="text-xs font-bold text-sky-600">${senderName}</h4><p class="text-sm text-gray-800 mt-1.5 leading-relaxed">${m.content}</p><p class="text-[10px] text-gray-400 mt-3">刚刚 ｜ AndrewChat</p></div>`;
-                container.appendChild(card);
-            });
-        }
-
-        function postMomentPrompt() {
-            const text = prompt('记录这一刻的想法：'); if (!text) return;
-            const moments = DB.getMoments(); moments.unshift({ author: currentUser.phone, content: text, time: Date.now() }); DB.saveMoments(moments);
-            renderMoments(); showToast('发布动态成功！');
-        }
-
-        function switchTab(tabId) {
-            const tabs = ['chat', 'contacts', 'find', 'me'];
-            tabs.forEach(t => {
-                document.getElementById(`tab-${t}`).classList.add('hidden');
-                document.getElementById(`nav-${t}`).className = "flex-grow flex flex-col items-center justify-center text-gray-400 py-1";
-            });
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-            document.getElementById(`nav-${tabId}`).className = "flex-grow flex flex-col items-center justify-center text-[#07c160] py-1";
-
-            const titles = { chat: '微信', contacts: '通讯录', find: '发现', me: '我的' }; document.getElementById('main-title').innerText = titles[tabId];
-            if (tabId === 'contacts') pullOfflineBeacons();
-            updateBadges();
-        }
-
-        function toggleAddMenu() { document.getElementById('add-menu').classList.toggle('hidden'); }
-        function handleLogout() { SafeStorage.set('andrew_logged_in_user_phone', ''); currentUser = null; document.getElementById('view-main').classList.add('hidden'); document.getElementById('view-login').classList.remove('hidden'); showToast('已安全退出当前账号'); }
-
         function openRedPacketPhysics() {
             document.getElementById('rp-open-btn').style.transform = "rotateY(360deg)";
             setTimeout(() => {
@@ -1052,10 +1034,10 @@
         }
 
         // =======================================================
-        // 【终极重构：防 ICE 队列清空、状态机轮询、完美支持自愈】
+        // WebRTC 极速 P2P 信道协商
         // =======================================================
         async function initiateVideoCall() {
-            iceCandidatesQueue = []; // 重置队列
+            iceCandidatesQueue = []; // 新通话前彻底清空残留的候选缓存
             const friendName = DB.getUsers()[activeChatPhone]?.name || "好友";
             
             document.getElementById('view-call').classList.remove('hidden');
@@ -1075,7 +1057,7 @@
         }
 
         async function acceptVideoCallIncoming() {
-            iceCandidatesQueue = []; // 重置接收端旧信令，防止旧坐标干扰
+            iceCandidatesQueue = []; // 清空接收端旧数据，确保 100% 干净的握手
             document.getElementById('btn-accept-call').classList.add('hidden');
             document.getElementById('call-status').innerText = '正在接通音视频...';
             
@@ -1104,7 +1086,7 @@
         }
 
         function initiateRTCPeerConnection(isOfferer) {
-            // 【核心 Bug 修复】保留 iceCandidatesQueue 队列！之前在这里被置空从而销毁了提前抵达的所有公网坐标。
+            // 注意：这里绝对不可以清空 iceCandidatesQueue！
             if (pc) pc.close();
             document.getElementById('rtc-sub-status').innerText = "网络穿透与地址搜集启动中 (STUN)...";
 
@@ -1271,6 +1253,48 @@
             document.getElementById('diag-local-stream').innerText = "Not Captured";
             document.getElementById('diag-local-stream').className = "text-red-400";
         }
+
+        // 朋友圈
+        function openMoments() {
+            document.getElementById('view-moments').classList.remove('hidden'); renderMoments();
+        }
+        function closeMoments() { document.getElementById('view-moments').classList.add('hidden'); }
+
+        function renderMoments() {
+            const container = document.getElementById('moments-container'); container.innerHTML = '';
+            const moments = DB.getMoments(); const users = DB.getUsers();
+
+            if (moments.length === 0) { container.innerHTML = `<p class="text-center text-gray-400 mt-20 text-sm">暂无朋友圈动态</p>`; return; }
+            moments.forEach(m => {
+                const sender = users[m.author]; const senderName = sender ? sender.name : '未知朋友';
+                const card = document.createElement('div'); card.className = "bg-white rounded-[6px] p-4 shadow-sm border border-gray-100 flex space-x-3";
+                card.innerHTML = `<div class="w-10 h-10 rounded-[6px] bg-emerald-500 text-white font-black flex items-center justify-center text-lg uppercase shadow-sm">${senderName.charAt(0)}</div><div class="flex-grow"><h4 class="text-xs font-bold text-sky-600">${senderName}</h4><p class="text-sm text-gray-800 mt-1.5 leading-relaxed">${m.content}</p><p class="text-[10px] text-gray-400 mt-3">刚刚 ｜ AndrewChat</p></div>`;
+                container.appendChild(card);
+            });
+        }
+
+        function postMomentPrompt() {
+            const text = prompt('记录这一刻的想法：'); if (!text) return;
+            const moments = DB.getMoments(); moments.unshift({ author: currentUser.phone, content: text, time: Date.now() }); DB.saveMoments(moments);
+            renderMoments(); showToast('发布动态成功！');
+        }
+
+        function switchTab(tabId) {
+            const tabs = ['chat', 'contacts', 'find', 'me'];
+            tabs.forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`nav-${t}`).className = "flex-grow flex flex-col items-center justify-center text-gray-400 py-1";
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`nav-${tabId}`).className = "flex-grow flex flex-col items-center justify-center text-[#07c160] py-1";
+
+            const titles = { chat: '微信', contacts: '通讯录', find: '发现', me: '我的' }; document.getElementById('main-title').innerText = titles[tabId];
+            if (tabId === 'contacts') pullOfflineBeacons();
+            updateBadges();
+        }
+
+        function toggleAddMenu() { document.getElementById('add-menu').classList.toggle('hidden'); }
+        function handleLogout() { SafeStorage.set('andrew_logged_in_user_phone', ''); currentUser = null; document.getElementById('view-main').classList.add('hidden'); document.getElementById('view-login').classList.remove('hidden'); showToast('已安全退出当前账号'); }
     </script>
 </body>
 </html>
