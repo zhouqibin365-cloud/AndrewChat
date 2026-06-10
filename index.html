@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AndrewChat</title>
-    <!-- 引入 PWA 配置文件 -->
+    <!-- PWA 配置 link -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ededed">
-    <!-- 激活 iOS 高保真独立全屏模式 -->
+    <!-- iOS 原生全屏运行模式 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="AndrewChat">
     
-    <!-- 苹果原生高精度 PWA 桌面图标 -->
-    <link class="apple-touch-icon" rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/WeChat_logo.svg/512px-WeChat_logo.svg.png">
+    <!-- 桌面快捷方式图标 -->
+    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/WeChat_logo.svg/512px-WeChat_logo.svg.png">
     
     <!-- Tailwind CSS 界面框架 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -30,7 +30,7 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* 视口高度自适应（适配 Google Pixel 9） */
+        /* 视口高度自适应变量（Pixel 9 适配） */
         :root {
             --vh: 1vh;
         }
@@ -60,7 +60,7 @@
             scrollbar-width: none;
         }
 
-        /* 微信原装聊天气泡 */
+        /* 微信经典气泡指针 */
         .bubble-left::before {
             content: '';
             position: absolute;
@@ -105,7 +105,7 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden select-none" style="height: calc(var(--vh, 1vh) * 100)">
 
-    <!-- 全局自愈解锁加载层 -->
+    <!-- 全局防死锁云初始化加载层 -->
     <div id="loading-layer" class="fixed inset-0 bg-[#ededed] z-[2000] flex flex-col items-center justify-center space-y-4">
         <div class="relative w-12 h-12">
             <div class="absolute inset-0 rounded-full border-4 border-[#07c160]/20"></div>
@@ -114,13 +114,13 @@
         <p class="text-sm font-bold text-gray-500 tracking-wide">正在连入 AndrewChat 全球自愈通道...</p>
     </div>
 
-    <!-- 自适应提示横幅 -->
+    <!-- 顶端自适应消息弹窗 -->
     <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 px-4 py-2.5 bg-gray-900/95 text-white text-xs rounded-full opacity-0 pointer-events-none transition-all duration-300 z-[1000] shadow-2xl flex items-center space-x-2">
         <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
         <span id="toast-text">通知消息</span>
     </div>
 
-    <!-- 1. 登录注册页面 -->
+    <!-- 1. 登录与注册控制面板 -->
     <div id="view-login" class="fixed inset-0 bg-[#ededed] flex flex-col justify-between items-center px-10 py-16 z-[100] ios-top-safe-padding safe-padding-bottom">
         <div class="flex-grow flex flex-col items-center justify-center w-full max-w-sm">
             <div class="w-24 h-24 bg-[#07c160] rounded-[20px] flex items-center justify-center shadow-md mb-6 animate-pulse">
@@ -148,7 +148,7 @@
         <div class="text-xs text-gray-400">使用即代表您已同意《服务条款与隐私协议》</div>
     </div>
 
-    <!-- 2. 微信主面板 -->
+    <!-- 2. 主界面模块 -->
     <div id="view-main" class="hidden flex-col h-full overflow-hidden bg-[#f7f7f7]">
         <!-- 头部导航栏 -->
         <header class="bg-[#ededed] px-4 pb-3 border-b border-[#e0e0e0] flex justify-between items-end ios-top-safe-padding relative z-40 min-h-[96px]">
@@ -308,12 +308,12 @@
         </div>
     </div>
 
-    <!-- 5. 跨端音视频通话面板 (Z-Index 层级与音视频强制分离渲染) -->
+    <!-- 5. 跨端音视频通话面板 (终极自愈防黑屏) -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding animate-fade-in">
-        <!-- 核心物理视频层：使用 opacity 控制，静音（Muted）视频在移动端 Safari 具有 100% 自动播放特权，绝不受阻 -->
+        <!-- 远端视频渲染轨道 (muted静音，100% 自动播放免拦截) -->
         <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-30 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline muted></video>
         
-        <!-- 【核心突破】独立音频轨道渲染器：专门负责渲染对方的无损音轨 -->
+        <!-- 【黄金修复】iOS/Android 专属解耦音频信道 -->
         <audio id="remote-audio" autoplay class="hidden"></audio>
         
         <div id="simulated-video-bg" class="absolute inset-0 bg-gradient-to-b from-[#1c2229] to-[#0d1115] flex flex-col items-center justify-center z-10 transition-opacity duration-500">
@@ -406,7 +406,7 @@
     <!-- 微信核心脚本整合大底座 (防沙箱阻断与高自愈信道) -->
     <script>
         // ----------------------------------------------------
-        // 1. 微信日志调试工具 (置顶定义避免 undefined)
+        // 1. 微信日志调试工具
         // ----------------------------------------------------
         window.debugLogs = [];
         const originalLog = console.log;
@@ -572,7 +572,7 @@
         iceCandidatesQueue = []; // 暂存对端 ICE 坐标包
         let chunkBuffer = {}; 
 
-        // 【黄金重构 A】在最顶层实例化全局唯一 remoteStream，页面生存期间绝不销毁、覆盖或重设其 srcObject
+        // 全局唯一且持久的 MediaStream，100% 杜绝 iOS 重复绑定 srcObject 触发的 AbortError 崩溃！
         const remoteStream = new MediaStream();
 
         function adjustViewportHeight() {
@@ -585,8 +585,7 @@
             window.addEventListener('resize', adjustViewportHeight);
             window.addEventListener('orientationchange', adjustViewportHeight);
 
-            // 【黄金重构 B】DOM 加载后立即将 remoteStream 静态绑定至 unmuted 的 audio 和 muted 的 video 上
-            // 之后 track 无论是 audio 还是 video，抵达时只要 addTrack 注入 remoteStream 即可，100% 避开 srcObject 重新赋值引起的 AbortError！
+            // 提前、静态地将全局 remoteStream 分别绑定至静音 video 与标准 audio 上
             document.getElementById('remote-video').srcObject = remoteStream;
             document.getElementById('remote-audio').srcObject = remoteStream;
 
@@ -736,7 +735,7 @@
                         if (rawData.event === 'message') {
                             const parsed = JSON.parse(rawData.message);
                             // 过滤历史消息包中的废旧呼叫协商
-                            if (['VIDEO_CALL_OFFER', 'VIDEO_CALL_ACCEPT', 'VIDEO_CALL_REJECT', 'RTC_SDP_OFFER', 'RTC_SDP_ANSWER', 'RTC_ICE_CANDIDATE', 'PAYLOAD_CHUNK'].includes(parsed.type)) {
+                            if (['VIDEO_CALL_OFFER', 'VIDEO_CALL_ACCEPT', 'VIDEO_CALL_REJECT', 'RTC_SDP_OFFER', 'RTC_SDP_ANSWER', 'RTC_ICE_CANDIDATE', 'PAYLOAD_CHUNK', 'RTC_ICE_CANDIDATES_BUNDLE'].includes(parsed.type)) {
                                 return; 
                             }
                             handleMessageBridge(parsed.type, parsed.payload);
@@ -841,8 +840,10 @@
                 handleRTCOffer(payload.sdp);
             } else if (type === 'RTC_SDP_ANSWER' && payload.to === currentUser.phone) {
                 handleRTCAnswer(payload.sdp);
-            } else if (type === 'RTC_ICE_CANDIDATE' && payload.to === currentUser.phone) {
-                handleIceCandidate(payload.candidate);
+            } 
+            // 【核心修复：接收坐标束】
+            else if (type === 'RTC_ICE_CANDIDATES_BUNDLE' && payload.to === currentUser.phone) {
+                handleIceCandidatesBundle(payload.candidates);
             }
         }
 
@@ -1138,6 +1139,24 @@
         // =======================================================
         // 9. WebRTC 物理协商核心方法
         // =======================================================
+        let localIceCandidates = [];
+        let iceBundleSent = false;
+        let iceGatheringTimeout = null;
+
+        // 【核心大重构：Bundled ICE 投递机制】
+        function sendIceBundle() {
+            if (iceBundleSent) return;
+            iceBundleSent = true;
+            if (iceGatheringTimeout) clearTimeout(iceGatheringTimeout);
+            
+            console.log(`[信令网关] 本地搜集结束，准备打包向对端发送 ${localIceCandidates.length} 个 ICE 坐标`);
+            sendCloudPayload('RTC_ICE_CANDIDATES_BUNDLE', {
+                from: currentUser.phone,
+                to: activeChatPhone,
+                candidates: localIceCandidates
+            }, activeChatPhone);
+        }
+
         window.initiateVideoCall = async function() {
             iceCandidatesQueue = []; 
             const friendName = DB.getUsers()[activeChatPhone]?.name || "好友";
@@ -1149,12 +1168,11 @@
             document.getElementById('simulated-video-bg').classList.remove('hidden');
             document.getElementById('rtc-sub-status').innerText = "等待建立 P2P 隧道...";
             
-            // 【黄金重构 C】在点击手势的最上游（同步执行栈）强行、同步对 remote-video & remote-audio 预启动 .play()
-            // 此举能永久解除移动端浏览器的自动播放与解码锁定，对方轨道一旦追加，便会自动顺畅解码播放！
+            // 点击手势的最上游对 remote 渲染器执行同步 play() 唤醒，免疫一切 Autoplay 锁
             const remoteVideo = document.getElementById('remote-video');
             const remoteAudio = document.getElementById('remote-audio');
-            if (remoteVideo) remoteVideo.play().catch(e => console.log("[Priming] 视频预锁失败:", e));
-            if (remoteAudio) remoteAudio.play().catch(e => console.log("[Priming] 音频预锁失败:", e));
+            if (remoteVideo) remoteVideo.play().catch(()=>{});
+            if (remoteAudio) remoteAudio.play().catch(()=>{});
 
             callStartTime = null; 
             await startLocalStream();
@@ -1168,11 +1186,10 @@
             
             callStartTime = Date.now(); 
 
-            // 【黄金重构 C】接听手势最上游强行对两端媒体进行预启动播放，100% 免疫 AbortError !
             const remoteVideo = document.getElementById('remote-video');
             const remoteAudio = document.getElementById('remote-audio');
-            if (remoteVideo) remoteVideo.play().catch(e => console.log("[Priming] 视频预锁失败:", e));
-            if (remoteAudio) remoteAudio.play().catch(e => console.log("[Priming] 音频预锁失败:", e));
+            if (remoteVideo) remoteVideo.play().catch(()=>{});
+            if (remoteAudio) remoteAudio.play().catch(()=>{});
 
             await startLocalStream();
             sendCloudPayload('VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
@@ -1189,7 +1206,7 @@
                 document.getElementById('diag-local-stream').className = "text-emerald-400";
             } catch (err) {
                 console.warn('获取本端摄像头轨道失败:', err);
-                document.getElementById('call-status').innerText = '媒体许可受阻 (降级通话中)';
+                document.getElementById('call-status').innerText = '媒体许可受阻 (仅支持降级通话中)';
             }
         }
 
@@ -1197,6 +1214,7 @@
             if (pc) pc.close();
             document.getElementById('rtc-sub-status').innerText = "穿透中 (小米/腾讯 STUN 集群)...";
 
+            // 国内最强免费高可用 STUN 穿透服务器组
             const configuration = {
                 iceServers: [
                     { urls: 'stun:stun.miwifi.com:3478' },
@@ -1229,35 +1247,56 @@
                 localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             }
 
-            // 【黄金重构 D】轨道抵达时，千万不能重新对 srcObject 赋值。
-            // 只需要将新到达的轨道动态追加至全局 remoteStream 中，页面视频播放状态由于先前已被点击手势“预启动”，因此流一旦追加，视频和声音就会瞬间流畅地自动播放！
+            // 【增量轨道装配 + UI抢先展现】
             pc.ontrack = (event) => {
-                console.log("[WebRTC] 轨道抵达:", event.track.kind);
+                console.log("[WebRTC] 轨道抵达: " + event.track.kind);
                 
+                // 将轨道增量塞入已绑定的全局 remoteStream
                 if (!remoteStream.getTracks().some(t => t.id === event.track.id)) {
                     remoteStream.addTrack(event.track);
                     console.log(`[WebRTC] 成功向流中追加轨道 [${event.track.kind}]`);
                 }
 
-                // 【黄金重构 E】展现视频的时间绝不能在 `.play()` 的 promise 回调中！
-                // 只要 video 类型的轨道一到，无论播放是否因浏览器原因临时阻塞，画面图层立刻置顶浮现并隐去波形占位！
+                // 一旦 video 类型的轨道到达，100% 抢先置顶展现对方视频层并隐去波形占位！
                 if (event.track.kind === 'video') {
                     const remoteVideo = document.getElementById('remote-video');
                     remoteVideo.classList.remove('opacity-0', 'pointer-events-none');
-                    remoteVideo.style.zIndex = "30"; // 置顶
+                    remoteVideo.style.zIndex = "30"; 
                     const bg = document.getElementById('simulated-video-bg');
                     if (bg) bg.classList.add('hidden');
-                    document.getElementById('call-status').innerText = '加密高清视频通话中';
+                    document.getElementById('call-status').innerText = '加密视频通话中';
                     document.getElementById('diag-remote-stream').innerText = "Stream Active";
                     document.getElementById('diag-remote-stream').className = "text-emerald-400";
                 }
             };
 
+            // 【信令大重构 1：ICE 搜集与打包投递防崩溃】
+            localIceCandidates = [];
+            iceBundleSent = false;
+
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
-                    sendCloudPayload('RTC_ICE_CANDIDATE', { from: currentUser.phone, to: activeChatPhone, candidate: event.candidate });
+                    // 精准提取纯净 JSON，彻底杜绝 iOS 序列化 getter 崩溃
+                    const candidateInit = {
+                        candidate: event.candidate.candidate,
+                        sdpMid: event.candidate.sdpMid,
+                        sdpMLineIndex: event.candidate.sdpMLineIndex,
+                        usernameFragment: event.candidate.usernameFragment
+                    };
+                    localIceCandidates.push(candidateInit);
+                    console.log(`[信令网关] 搜集到本地候选坐标: ${event.candidate.type}`);
+                    
+                    // 防挂死看门狗
+                    if (iceGatheringTimeout) clearTimeout(iceGatheringTimeout);
+                    iceGatheringTimeout = setTimeout(sendIceBundle, 1000);
+                } else {
+                    console.log("[信令网关] 本地搜集状态 complete，立即发送坐标束");
+                    sendIceBundle();
                 }
             };
+
+            // 终极兜底 3 秒定时器
+            iceGatheringTimeout = setTimeout(sendIceBundle, 3000);
 
             if (isOfferer) {
                 pc.createOffer().then(offer => {
@@ -1275,6 +1314,8 @@
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
                 sendLargePayload('RTC_SDP_ANSWER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription }, activeChatPhone);
+                
+                // SDP 完成后，安全注入 A 端提前发过来的 ICE 候选人
                 processIceQueue();
             } catch (err) {}
         }
@@ -1287,27 +1328,34 @@
             } catch (err) {}
         }
 
-        async function handleIceCandidate(candidate) {
-            if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-                try {
-                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                    console.log(`[信令网关] 成功直接注入对端 ICE 坐标`);
-                } catch (e) {
-                    console.warn("[信令网关] 直接注入 ICE 坐标失败:", e);
+        // 【信令大重构 2：接收坐标束并延迟注入】
+        async function handleIceCandidatesBundle(candidates) {
+            console.log(`[信令网关] 收到对端打包发送的 ${candidates.length} 个 ICE 候选人坐标`);
+            candidates.forEach(cand => {
+                if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+                    try {
+                        pc.addIceCandidate(new RTCIceCandidate(cand));
+                        console.log(`[信令网关] 成功物理注入对端坐标: ${cand.candidate.split(' ')[7] || 'unknown'}`);
+                    } catch (e) {
+                        console.warn("[信令网关] 直接注入坐标失败:", e);
+                    }
+                } else {
+                    iceCandidatesQueue.push(cand);
                 }
-            } else {
-                iceCandidatesQueue.push(candidate);
-                console.log(`[信令网关] 对端 ICE 坐标已缓存。积压数: ${iceCandidatesQueue.length}`);
+            });
+            if (!pc || !pc.remoteDescription || !pc.remoteDescription.type) {
+                console.log(`[信令网关] 积压在暂存队列中的 ICE 坐标数: ${iceCandidatesQueue.length}`);
             }
         }
 
         async function processIceQueue() {
-            console.log(`[信令网关] 开始清空注入积压的 ${iceCandidatesQueue.length} 个 ICE 坐标包...`);
+            if (iceCandidatesQueue.length === 0) return;
+            console.log(`[信令网关] SDP 建立完成，开始清空注入暂存的 ${iceCandidatesQueue.length} 个 ICE 坐标...`);
             while (iceCandidatesQueue.length > 0) {
                 const cand = iceCandidatesQueue.shift();
                 try {
                     await pc.addIceCandidate(new RTCIceCandidate(cand)); 
-                    console.log(`[信令网关] 延迟注入成功对端 ICE 坐标`);
+                    console.log(`[信令网关] 延迟注入成功对端坐标: ${cand.candidate.split(' ')[7] || 'unknown'}`);
                 } catch (e) {
                     console.warn("[信令网关] 延迟注入 ICE 失败:", e);
                 }
@@ -1316,10 +1364,13 @@
 
         function closeRTCPeerConnection() {
             if (rtcNegotiationTimer) { clearTimeout(rtcNegotiationTimer); rtcNegotiationTimer = null; }
+            if (iceGatheringTimeout) { clearTimeout(iceGatheringTimeout); iceGatheringTimeout = null; }
             if (pc) { pc.close(); pc = null; }
             iceCandidatesQueue = [];
+            localIceCandidates = [];
+            iceBundleSent = false;
             
-            // 清理旧轨道，准备下一次通话
+            // 清理旧轨道
             remoteStream.getTracks().forEach(track => {
                 track.stop();
                 remoteStream.removeTrack(track);
