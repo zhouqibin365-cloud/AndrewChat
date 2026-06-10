@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="AndrewChat">
     
     <!-- 苹果原生高精度 PWA 桌面图标 -->
-    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/WeChat_logo.svg/512px-WeChat_logo.svg.png">
+    <link class="apple-touch-icon" rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/WeChat_logo.svg/512px-WeChat_logo.svg.png">
     
     <!-- Tailwind CSS 界面框架 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -308,11 +308,13 @@
         </div>
     </div>
 
-    <!-- 5. 跨端音视频通话面板 (彻底自愈并预防 AbortError 黑屏) -->
+    <!-- 5. 跨端音视频通话面板 (Z-Index 层级与音视频强制分离渲染) -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding animate-fade-in">
-        <!-- 核心物理视频层：使用 opacity 控制，坚决不在 iOS 上使用 hidden，以保持渲染管线常态激活 -->
-        <!-- 重点修复：z-index 设为 30 高于 simulated-video-bg (z-10) 保证对端流到达时 100% 覆盖浮现！ -->
-        <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-30 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline></video>
+        <!-- 核心物理视频层：使用 opacity 控制，静音（Muted）视频在移动端 Safari 具有 100% 自动播放特权，绝不受阻 -->
+        <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-30 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline muted></video>
+        
+        <!-- 【核心突破】独立音频轨道渲染器：专门负责渲染对方的无损音轨 -->
+        <audio id="remote-audio" autoplay class="hidden"></audio>
         
         <div id="simulated-video-bg" class="absolute inset-0 bg-gradient-to-b from-[#1c2229] to-[#0d1115] flex flex-col items-center justify-center z-10 transition-opacity duration-500">
             <div class="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center animate-pulse mb-6 relative">
@@ -332,6 +334,7 @@
             <p id="call-status" class="text-sm text-gray-300">正在等待对方接听</p>
         </div>
 
+        <!-- 挂断和接受按钮 z-50 -->
         <div class="relative z-50 flex justify-center space-x-12 mb-10">
             <button onclick="terminateVideoCall()" class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all z-50 pointer-events-auto">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -555,7 +558,7 @@
         }
 
         // ----------------------------------------------------
-        // 5. 全局核心变量声明
+        // 5. 全局核心变量与 WebRTC 远端流静态绑定
         // ----------------------------------------------------
         currentUser = null;
         activeChatPhone = null;
@@ -569,6 +572,9 @@
         iceCandidatesQueue = []; // 暂存对端 ICE 坐标包
         let chunkBuffer = {}; 
 
+        // 【黄金重构 A】在最顶层实例化全局唯一 remoteStream，页面生存期间绝不销毁、覆盖或重设其 srcObject
+        const remoteStream = new MediaStream();
+
         function adjustViewportHeight() {
             const vh = window.innerHeight * 0.01;
             document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -578,6 +584,11 @@
             adjustViewportHeight();
             window.addEventListener('resize', adjustViewportHeight);
             window.addEventListener('orientationchange', adjustViewportHeight);
+
+            // 【黄金重构 B】DOM 加载后立即将 remoteStream 静态绑定至 unmuted 的 audio 和 muted 的 video 上
+            // 之后 track 无论是 audio 还是 video，抵达时只要 addTrack 注入 remoteStream 即可，100% 避开 srcObject 重新赋值引起的 AbortError！
+            document.getElementById('remote-video').srcObject = remoteStream;
+            document.getElementById('remote-audio').srcObject = remoteStream;
 
             setTimeout(() => {
                 const loader = document.getElementById('loading-layer');
@@ -1128,7 +1139,7 @@
         // 9. WebRTC 物理协商核心方法
         // =======================================================
         window.initiateVideoCall = async function() {
-            iceCandidatesQueue = []; // 新通话前彻底清空残留的候选缓存
+            iceCandidatesQueue = []; 
             const friendName = DB.getUsers()[activeChatPhone]?.name || "好友";
             
             document.getElementById('view-call').classList.remove('hidden');
@@ -1138,9 +1149,12 @@
             document.getElementById('simulated-video-bg').classList.remove('hidden');
             document.getElementById('rtc-sub-status').innerText = "等待建立 P2P 隧道...";
             
-            // 预授播放权 (iOS & Android 兼容大门)
+            // 【黄金重构 C】在点击手势的最上游（同步执行栈）强行、同步对 remote-video & remote-audio 预启动 .play()
+            // 此举能永久解除移动端浏览器的自动播放与解码锁定，对方轨道一旦追加，便会自动顺畅解码播放！
             const remoteVideo = document.getElementById('remote-video');
-            remoteVideo.play().catch(()=>{});
+            const remoteAudio = document.getElementById('remote-audio');
+            if (remoteVideo) remoteVideo.play().catch(e => console.log("[Priming] 视频预锁失败:", e));
+            if (remoteAudio) remoteAudio.play().catch(e => console.log("[Priming] 音频预锁失败:", e));
 
             callStartTime = null; 
             await startLocalStream();
@@ -1148,14 +1162,17 @@
         };
 
         window.acceptVideoCallIncoming = async function() {
-            iceCandidatesQueue = []; // 重置接收端旧信令，防止旧坐标干扰
+            iceCandidatesQueue = []; 
             document.getElementById('btn-accept-call').classList.add('hidden');
             document.getElementById('call-status').innerText = '正在接通音视频...';
             
             callStartTime = Date.now(); 
 
+            // 【黄金重构 C】接听手势最上游强行对两端媒体进行预启动播放，100% 免疫 AbortError !
             const remoteVideo = document.getElementById('remote-video');
-            remoteVideo.play().catch(()=>{});
+            const remoteAudio = document.getElementById('remote-audio');
+            if (remoteVideo) remoteVideo.play().catch(e => console.log("[Priming] 视频预锁失败:", e));
+            if (remoteAudio) remoteAudio.play().catch(e => console.log("[Priming] 音频预锁失败:", e));
 
             await startLocalStream();
             sendCloudPayload('VIDEO_CALL_ACCEPT', { from: currentUser.phone, to: activeChatPhone });
@@ -1177,7 +1194,6 @@
         }
 
         function initiateRTCPeerConnection(isOfferer) {
-            // 注意：这里绝对不可以清空 iceCandidatesQueue！
             if (pc) pc.close();
             document.getElementById('rtc-sub-status').innerText = "穿透中 (小米/腾讯 STUN 集群)...";
 
@@ -1213,44 +1229,28 @@
                 localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             }
 
-            // 【核心重构：轨道级追加裝载 + 彻底防重设及 UI 抢先展现】
+            // 【黄金重构 D】轨道抵达时，千万不能重新对 srcObject 赋值。
+            // 只需要将新到达的轨道动态追加至全局 remoteStream 中，页面视频播放状态由于先前已被点击手势“预启动”，因此流一旦追加，视频和声音就会瞬间流畅地自动播放！
             pc.ontrack = (event) => {
                 console.log("[WebRTC] 轨道抵达:", event.track.kind);
-                const remoteVideo = document.getElementById('remote-video');
                 
-                // 【黄金重构 1】如果已经成功装配过 srcObject，绝对不要重新赋值它（否则直接触发 AbortError！）
-                // 而是将新轨道温和地添加进已存在的 Stream 容器中。
-                let remoteStream = remoteVideo.srcObject;
-                if (!remoteStream) {
-                    remoteStream = new MediaStream();
-                    remoteVideo.srcObject = remoteStream;
-                    console.log("[WebRTC] 初始化并绑定新 MediaStream");
-                }
-
                 if (!remoteStream.getTracks().some(t => t.id === event.track.id)) {
                     remoteStream.addTrack(event.track);
                     console.log(`[WebRTC] 成功向流中追加轨道 [${event.track.kind}]`);
                 }
 
-                // 【黄金重构 2】展现远端视频视图的时间决不能依赖 `.play()` promise 成功回调！
-                // 只要 video 轨道一到，立即解封透明度并置顶图层，将文字和声波动画隐去，抢先展现对端画面！
+                // 【黄金重构 E】展现视频的时间绝不能在 `.play()` 的 promise 回调中！
+                // 只要 video 类型的轨道一到，无论播放是否因浏览器原因临时阻塞，画面图层立刻置顶浮现并隐去波形占位！
                 if (event.track.kind === 'video') {
+                    const remoteVideo = document.getElementById('remote-video');
                     remoteVideo.classList.remove('opacity-0', 'pointer-events-none');
-                    remoteVideo.style.zIndex = "30"; // 强制置顶
+                    remoteVideo.style.zIndex = "30"; // 置顶
                     const bg = document.getElementById('simulated-video-bg');
                     if (bg) bg.classList.add('hidden');
                     document.getElementById('call-status').innerText = '加密高清视频通话中';
                     document.getElementById('diag-remote-stream').innerText = "Stream Active";
                     document.getElementById('diag-remote-stream').className = "text-emerald-400";
                 }
-                
-                remoteVideo.play().then(() => {
-                    console.log(`[WebRTC] 视频播放器启动成功 [${event.track.kind} 阶段]`);
-                }).catch(err => {
-                    console.warn(`[WebRTC] 自动播放受阻，静音强制唤醒 [${event.track.kind} 阶段]:`, err);
-                    remoteVideo.muted = true;
-                    remoteVideo.play().catch(e => console.error("[WebRTC] 强制静音播放亦宣告失败:", e));
-                });
             };
 
             pc.onicecandidate = (event) => {
@@ -1291,7 +1291,7 @@
             if (pc && pc.remoteDescription && pc.remoteDescription.type) {
                 try {
                     await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                    console.log(`[信令网关] 成功直接注入对端 ICE 坐标: Type=${candidate.candidate ? candidate.candidate.split(' ')[7] : 'unknown'}`);
+                    console.log(`[信令网关] 成功直接注入对端 ICE 坐标`);
                 } catch (e) {
                     console.warn("[信令网关] 直接注入 ICE 坐标失败:", e);
                 }
@@ -1318,11 +1318,17 @@
             if (rtcNegotiationTimer) { clearTimeout(rtcNegotiationTimer); rtcNegotiationTimer = null; }
             if (pc) { pc.close(); pc = null; }
             iceCandidatesQueue = [];
+            
+            // 清理旧轨道，准备下一次通话
+            remoteStream.getTracks().forEach(track => {
+                track.stop();
+                remoteStream.removeTrack(track);
+            });
+
             const remoteVideo = document.getElementById('remote-video');
             if (remoteVideo) {
                 remoteVideo.classList.add('opacity-0', 'pointer-events-none');
                 remoteVideo.style.zIndex = "0"; 
-                remoteVideo.srcObject = null;
             }
             document.getElementById('simulated-video-bg').classList.add('hidden');
             document.getElementById('diag-remote-stream').innerText = "Not Subscribed";
