@@ -434,6 +434,27 @@
         let chunkBuffer = {};
         let processedSignalIds = new Set();// 信令去重，防止 ws + 轮询重复处理
 
+        // 每次开始新通话前的全量状态重置 —— 不依赖上一通是否正常挂断
+        function resetCallState() {
+            if (iceGatheringTimeout) { clearTimeout(iceGatheringTimeout); iceGatheringTimeout = null; }
+            if (pc) { try { pc.close(); } catch(e){} pc = null; }
+            iceCandidatesQueue = [];
+            localIceCandidates = [];
+            iceBundleSent = false;
+            chunkBuffer = {};                 // 清掉可能残留的半截 SDP 分片
+            processedSignalIds.clear();        // 去重集合不跨通话累积
+            // 清空全局 remoteStream 里上一通残留的轨道
+            remoteStream.getTracks().forEach(t => { try { t.stop(); } catch(e){} remoteStream.removeTrack(t); });
+            // 复位远端画面图层
+            const rv = document.getElementById('remote-video');
+            if (rv) {
+                rv.classList.add('opacity-0', 'pointer-events-none');
+                rv.classList.remove('opacity-100');
+                rv.style.zIndex = "0";
+            }
+            console.log("[通话状态] 已执行全量重置 resetCallState");
+        }
+
         // 全局唯一持久 MediaStream 容器
         const remoteStream = new MediaStream();
 
@@ -990,6 +1011,7 @@
         }
 
         window.initiateVideoCall = async function() {
+            resetCallState();
             iceCandidatesQueue = [];
             isCallActive = true;
             const friendName = DB.getUsers()[activeChatPhone]?.name || "好友";
@@ -1009,6 +1031,7 @@
         };
 
         window.acceptVideoCallIncoming = async function() {
+            resetCallState();
             iceCandidatesQueue = [];
             isCallActive = true;
             document.getElementById('btn-accept-call').classList.add('hidden');
@@ -1196,6 +1219,8 @@
             iceCandidatesQueue = [];
             localIceCandidates = [];
             iceBundleSent = false;
+            chunkBuffer = {};            // 清掉残留的半截分片，避免污染下一通
+            isCallActive = false;
             remoteStream.getTracks().forEach(track => { track.stop(); remoteStream.removeTrack(track); });
             const remoteVideo = document.getElementById('remote-video');
             if (remoteVideo) {
