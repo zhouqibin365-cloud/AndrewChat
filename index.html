@@ -60,7 +60,7 @@
             scrollbar-width: none;
         }
 
-        /* 微信原装聊天指针 */
+        /* 微信原装聊天气泡 */
         .bubble-left::before {
             content: '';
             position: absolute;
@@ -178,14 +178,14 @@
         </header>
 
         <div class="flex-grow overflow-hidden relative">
-            <div id="tab-chat" class="absolute inset-0 no-scrollbar overflow-y-auto divide-y divide-[#e5e5e5] bg-[#f7f7f7]">
+            <div id="tab-chat" class="absolute inset-0 no-scrollbar overflow-y-auto divide-y divide-[#e5e5e5] bg-[#f7f7f7] pb-12">
                 <div id="empty-chat" class="text-center text-gray-400 mt-24 text-sm px-6 leading-relaxed">
                     暂无会话。点右上角加号添加好友，待对方在“新的朋友”同意后即可开始畅聊！
                 </div>
                 <div id="chat-list" class="divide-y divide-[#e5e5e5]"></div>
             </div>
 
-            <div id="tab-contacts" class="absolute inset-0 hidden no-scrollbar overflow-y-auto bg-white divide-y divide-gray-100">
+            <div id="tab-contacts" class="absolute inset-0 hidden no-scrollbar overflow-y-auto bg-white divide-y divide-gray-100 pb-12">
                 <div onclick="openNewFriendsList()" class="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer bg-white transition-colors">
                     <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-[6px] bg-orange-500 text-white flex items-center justify-center font-bold text-xl">👥</div>
@@ -197,7 +197,7 @@
                 <div id="contacts-list" class="divide-y divide-gray-500/10"></div>
             </div>
 
-            <div id="tab-find" class="absolute inset-0 hidden no-scrollbar overflow-y-auto bg-[#ededed]">
+            <div id="tab-find" class="absolute inset-0 hidden no-scrollbar overflow-y-auto bg-[#ededed] pb-12">
                 <div onclick="openMoments()" class="bg-white px-4 py-4 mt-3 flex justify-between items-center active:bg-gray-100 cursor-pointer border-t border-b border-gray-200">
                     <div class="flex items-center space-x-3">
                         <div class="p-1.5 bg-gradient-to-tr from-yellow-500 to-orange-500 text-white rounded-[6px]">
@@ -209,7 +209,7 @@
                 </div>
             </div>
 
-            <div id="tab-me" class="absolute inset-0 hidden no-scrollbar overflow-y-auto bg-[#ededed]">
+            <div id="tab-me" class="absolute inset-0 hidden no-scrollbar overflow-y-auto bg-[#ededed] pb-12">
                 <div class="bg-white px-6 py-8 flex items-center space-x-4 mt-3 border-b border-gray-200">
                     <div id="my-avatar" class="w-16 h-16 rounded-[6px] bg-[#07c160] text-white font-bold flex items-center justify-center text-2xl uppercase shadow-sm">U</div>
                     <div>
@@ -308,31 +308,37 @@
         </div>
     </div>
 
-    <!-- 5. 跨端音视频通话面板 (自愈与穿透强化) -->
+    <!-- 5. 跨端音视频通话面板 (Z-Index 层级重构防白屏) -->
     <div id="view-call" class="hidden fixed inset-0 bg-black z-[200] flex flex-col justify-between p-6 text-white safe-padding-bottom ios-top-safe-padding animate-fade-in">
-        <!-- 核心物理视频层 -->
-        <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-0 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline></video>
         
+        <!-- 【核心修复 2】提高对端视频 remote-video 层级 z-30 (高于占位 z-10) -->
+        <video id="remote-video" class="absolute inset-0 w-full h-full object-cover z-30 opacity-0 transition-opacity duration-700 pointer-events-none" autoplay playsinline></video>
+        
+        <!-- 动态声波占位 z-10 -->
         <div id="simulated-video-bg" class="absolute inset-0 bg-gradient-to-b from-[#1c2229] to-[#0d1115] flex flex-col items-center justify-center z-10 transition-opacity duration-500">
             <div class="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center animate-pulse mb-6 relative">
                 <span class="text-5xl relative z-20">👤</span>
                 <span class="absolute inset-0 bg-emerald-500/10 rounded-full animate-ping z-10"></span>
             </div>
+            <!-- 占位波形 -->
+            <canvas id="fallback-canvas" class="w-48 h-48 bg-transparent rounded-full shadow-inner mb-4"></canvas>
             <p id="rtc-sub-status" class="text-xs text-gray-400 font-bold select-none tracking-wider">穿透网络防火墙中 (STUN)...</p>
         </div>
         
-        <video id="local-video" class="absolute right-4 top-24 w-28 h-40 rounded-lg border border-white/20 z-50 shadow-2xl" autoplay playsinline muted></video>
+        <!-- 【核心修复 2】提高本端小视频 z-40 (永远在最上层) -->
+        <video id="local-video" class="absolute right-4 top-24 w-28 h-40 rounded-lg border border-white/20 z-40 shadow-2xl" autoplay playsinline muted></video>
 
         <div class="relative z-40 text-center space-y-2 mt-12">
-            <h2 id="call-user-name" class="text-2xl font-bold">呼叫中...</h2>
+            <h2 id="call-user-name" class="text-2xl font-bold text-white shadow-sm">呼叫中...</h2>
             <p id="call-status" class="text-sm text-gray-300">正在等待对方接听</p>
         </div>
 
-        <div class="relative z-40 flex justify-center space-x-12 mb-10">
-            <button onclick="terminateVideoCall()" class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all z-50 pointer-events-auto">
+        <!-- 挂断和接受按钮 z-50 -->
+        <div class="relative z-50 flex justify-center space-x-12 mb-10">
+            <button onclick="terminateVideoCall()" class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all pointer-events-auto">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            <button id="btn-accept-call" onclick="acceptVideoCallIncoming()" class="hidden w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all animate-pulse z-50 pointer-events-auto">
+            <button id="btn-accept-call" onclick="acceptVideoCallIncoming()" class="hidden w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all animate-pulse pointer-events-auto">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
             </button>
         </div>
@@ -399,7 +405,7 @@
     <!-- 微信核心脚本整合大底座 (防沙箱阻断与高自愈信道) -->
     <script>
         // ----------------------------------------------------
-        // 1. 微信日志调试工具 (置顶定义避免 undefined)
+        // 1. 微信日志调试工具
         // ----------------------------------------------------
         window.debugLogs = [];
         const originalLog = console.log;
@@ -458,7 +464,7 @@
                 testPc.createDataChannel("diagnostic-test-pipe");
                 testPc.onicecandidate = (e) => {
                     if (e.candidate) {
-                        console.log(`[穿透自测] 成功搜集到候选坐标: Type=${e.candidate.type} | Protocol=${e.candidate.protocol} | Addr=${e.candidate.address}:${e.candidate.port}`);
+                        console.log(`[穿透自测] 搜集到候选坐标: Type=${e.candidate.type} | Protocol=${e.candidate.protocol} | Addr=${e.candidate.address}:${e.candidate.port}`);
                     } else {
                         console.log("=== 穿透自测完成 ===");
                     }
@@ -562,8 +568,8 @@
         pc = null; 
         callStartTime = null; 
         rtcNegotiationTimer = null; 
-        iceCandidatesQueue = []; // 暂存对端 ICE 坐标包
-        let chunkBuffer = {}; // 信令拆包重组缓冲区
+        iceCandidatesQueue = []; 
+        let chunkBuffer = {}; 
 
         function adjustViewportHeight() {
             const vh = window.innerHeight * 0.01;
@@ -686,10 +692,10 @@
             }).catch(()=>{});
         }
 
-        // 【核心大修复：高灵敏切片式无损大包投递网关 (拆分 SDP 避免 ntfy 截断)】
+        // 大包拆包投递
         function sendLargePayload(type, payload, targetPhone) {
             const jsonStr = JSON.stringify(payload);
-            const chunkSize = 800; // 安全分片大小，100% 绕过中继丢弃屏控
+            const chunkSize = 800; 
             const total = Math.ceil(jsonStr.length / chunkSize);
             const transferId = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
 
@@ -720,7 +726,7 @@
                         const rawData = JSON.parse(line);
                         if (rawData.event === 'message') {
                             const parsed = JSON.parse(rawData.message);
-                            // 过滤历史消息包中的废旧呼叫协商，防止状态机被历史包污染发生紊乱死锁
+                            // 过滤历史消息包中的废旧呼叫协商
                             if (['VIDEO_CALL_OFFER', 'VIDEO_CALL_ACCEPT', 'VIDEO_CALL_REJECT', 'RTC_SDP_OFFER', 'RTC_SDP_ANSWER', 'RTC_ICE_CANDIDATE', 'PAYLOAD_CHUNK'].includes(parsed.type)) {
                                 return; 
                             }
@@ -742,16 +748,15 @@
                 }
                 chunkBuffer[transferId][index] = chunk;
 
-                // 检查是否所有分片到齐
                 if (chunkBuffer[transferId].every(c => c !== null)) {
                     const fullJSON = chunkBuffer[transferId].join('');
-                    delete chunkBuffer[transferId]; // 释放内存
+                    delete chunkBuffer[transferId]; 
                     try {
                         const originalPayload = JSON.parse(fullJSON);
-                        console.log(`[拆包网关] 信令分片成功集齐并重组还原 [${originalType}], 大小: ${fullJSON.length} 字节`);
+                        console.log(`[拆包网关] 信令分片重组还原 [${originalType}]`);
                         handleMessageBridge(originalType, originalPayload);
                     } catch(e) {
-                        console.error("[拆包网关] 反序列化重组信令失败:", e);
+                        console.error("[拆包网关] 信令重组还原失败:", e);
                     }
                 }
                 return;
@@ -852,7 +857,7 @@
         }
 
         // ----------------------------------------------------
-        // 8. 微信交互面板
+        // 8. 微信面板交互绑定
         // ----------------------------------------------------
         window.switchTab = function(tabId) {
             const tabs = ['chat', 'contacts', 'find', 'me'];
@@ -1125,7 +1130,7 @@
         // 9. WebRTC 物理协商核心方法
         // =======================================================
         window.initiateVideoCall = async function() {
-            iceCandidatesQueue = []; // 新通话前彻底清空残留的候选缓存
+            iceCandidatesQueue = []; 
             const friendName = DB.getUsers()[activeChatPhone]?.name || "好友";
             
             document.getElementById('view-call').classList.remove('hidden');
@@ -1135,7 +1140,7 @@
             document.getElementById('simulated-video-bg').classList.remove('hidden');
             document.getElementById('rtc-sub-status').innerText = "等待建立 P2P 隧道...";
             
-            // 预授播放权 (iOS & Android 兼容大门)
+            // 预授播放权 (iOS & Android)
             const remoteVideo = document.getElementById('remote-video');
             remoteVideo.play().catch(()=>{});
 
@@ -1145,7 +1150,7 @@
         };
 
         window.acceptVideoCallIncoming = async function() {
-            iceCandidatesQueue = []; // 重置接收端旧信令，防止旧坐标干扰
+            iceCandidatesQueue = []; 
             document.getElementById('btn-accept-call').classList.add('hidden');
             document.getElementById('call-status').innerText = '正在接通音视频...';
             
@@ -1169,12 +1174,11 @@
                 document.getElementById('diag-local-stream').className = "text-emerald-400";
             } catch (err) {
                 console.warn('获取本端摄像头轨道失败:', err);
-                document.getElementById('call-status').innerText = '媒体许可受阻 (仅支持降级语音通信)';
+                document.getElementById('call-status').innerText = '媒体许可受阻 (降级通话中)';
             }
         }
 
         function initiateRTCPeerConnection(isOfferer) {
-            // 【重点修复】不能在这里清空 iceCandidatesQueue！
             if (pc) pc.close();
             document.getElementById('rtc-sub-status').innerText = "穿透中 (小米/腾讯 STUN 集群)...";
 
@@ -1210,29 +1214,44 @@
                 localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             }
 
-            // 完美的跨端媒体流装配
+            // 【核心重构：轨道级装配 + 彻底防重设 Abort 熔断机制】
             pc.ontrack = (event) => {
-                console.log("[WebRTC] 装配并点亮对方视频流");
+                console.log("[WebRTC] 轨道抵达:", event.track.kind);
                 const remoteVideo = document.getElementById('remote-video');
                 
+                // 【绝妙修复】如果已经成功装配，绝对不要重复赋值 srcObject，否则会导致 AbortError!
+                if (remoteVideo.srcObject) {
+                    console.log("[WebRTC] 流已存在，跳过重新赋值，避免 iOS/Android 解码器死锁");
+                    return;
+                }
+
                 if (event.streams && event.streams[0]) {
                     remoteVideo.srcObject = event.streams[0];
                 } else {
-                    const stream = remoteVideo.srcObject || new MediaStream();
+                    const stream = new MediaStream();
                     stream.addTrack(event.track);
                     remoteVideo.srcObject = stream;
                 }
 
-                // 除去透明隐藏，完美展现画面
+                // 移除透明并强制设定最高层级 z-30
                 remoteVideo.classList.remove('opacity-0', 'pointer-events-none');
+                remoteVideo.style.zIndex = "30"; 
                 
                 remoteVideo.play().then(() => {
-                    document.getElementById('simulated-video-bg').classList.add('hidden');
+                    console.log("[WebRTC] 对方画面已 100% 被点亮并播放");
+                    const bg = document.getElementById('simulated-video-bg');
+                    if (bg) bg.classList.add('hidden');
+                    
                     document.getElementById('call-status').innerText = '加密高清视频通话中';
                     document.getElementById('diag-remote-stream').innerText = "Stream Active";
                     document.getElementById('diag-remote-stream').className = "text-emerald-400";
                 }).catch(err => {
-                    console.warn("Autoplay block resolved dynamically:", err);
+                    console.warn("[WebRTC] 自动播放限制拦截，静音强制唤醒...", err);
+                    remoteVideo.muted = true;
+                    remoteVideo.play().then(() => {
+                        const bg = document.getElementById('simulated-video-bg');
+                        if (bg) bg.classList.add('hidden');
+                    }).catch(e => console.error("静音唤醒亦受阻:", e));
                 });
             };
 
@@ -1246,7 +1265,6 @@
                 pc.createOffer().then(offer => {
                     return pc.setLocalDescription(offer);
                 }).then(() => {
-                    // 【终极方案大修复】：将超大 Offer 采用分片网关拆包投递，100% 拒绝被公网中继裁切
                     sendLargePayload('RTC_SDP_OFFER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription }, activeChatPhone);
                 });
             }
@@ -1258,10 +1276,7 @@
                 await pc.setRemoteDescription(new RTCSessionDescription(sdp));
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
-                // 【终极方案大修复】：将超大 Answer 采用分片网关拆包投递，100% 拒绝被公网中继裁切
                 sendLargePayload('RTC_SDP_ANSWER', { from: currentUser.phone, to: activeChatPhone, sdp: pc.localDescription }, activeChatPhone);
-                
-                // SDP 协商完毕，有序清空缓冲池内的 ICE 包
                 processIceQueue();
             } catch (err) {}
         }
@@ -1300,6 +1315,7 @@
             const remoteVideo = document.getElementById('remote-video');
             if (remoteVideo) {
                 remoteVideo.classList.add('opacity-0', 'pointer-events-none');
+                remoteVideo.style.zIndex = "0"; 
                 remoteVideo.srcObject = null;
             }
             document.getElementById('simulated-video-bg').classList.add('hidden');
